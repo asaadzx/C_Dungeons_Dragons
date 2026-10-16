@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+<!-- =====================================================================
+     schedule.html  ->  route "/schedule" (Community Events Calendar)
+     Month-aware calendar showing current month ({{ current_month }})
+     Events popup on click.
+     ===================================================================== -->
+
+{% block content %}
+
+<h2 class="page-title">&#127914; Community Events</h2>
+<p class="page-subtitle">Calendar view for {{ current_month }}</p>
+
+<!-- ======================= ADD AN EVENT (form) ======================= -->
+<section class="nes-container with-title is-rounded events-form">
+    <p class="title">Post an event</p>
+    <form action="{{ url_for('add_event') }}" method="POST">
+
+        <label for="organizer_id">Who is organizing?</label>
+        <div class="nes-select">
+            <select id="organizer_id" name="organizer_id" required>
+                <option value="" disabled selected hidden>Choose your name...</option>
+                {% for student in students %}
+                    <option value="{{ student['id'] }}">{{ student['name'] }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <label for="title">Event name</label>
+        <input class="nes-input" type="text" id="title" name="title"
+               placeholder="e.g. Cairo Jazz Festival" required>
+
+        <label for="link">Event link (optional)</label>
+        <input class="nes-input" type="url" id="link" name="link"
+               placeholder="https://...">
+
+        <div class="field-row">
+            <div>
+                <label for="event_date">Date</label>
+                <input class="nes-input" type="text" id="event_date" name="event_date"
+                       placeholder="e.g. Fri 21 Oct or 21 Oct">
+            </div>
+            <div>
+                <label for="location">Location</label>
+                <input class="nes-input" type="text" id="location" name="location"
+                       placeholder="e.g. Cairo">
+            </div>
+        </div>
+
+        <label for="description">Details (optional)</label>
+        <textarea class="nes-textarea" id="description" name="description"
+                  placeholder="Tell people what it is about..."></textarea>
+
+        <button type="submit" class="nes-btn is-primary mt-1">+ Add to the calendar</button>
+    </form>
+</section>
+
+<!-- ========================= MONTH CALENDAR ========================= -->
+<div class="month-calendar-wrap">
+    <section class="nes-container is-rounded">
+        <table class="month-calendar">
+            <thead>
+                <tr>
+                    <th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for week in weeks %}
+                    <tr>
+                        {% for day in week %}
+                            <td class="calendar-cell {% if day == today %}is-today{% endif %}">
+                                {% if day != 0 %}
+                                    <div class="day-number">{{ day }}</div>
+                                    <div class="cell-events">
+                                        {% for ev in events_by_day.get(day, []) %}
+                                            <button class="event-chip-btn" type="button" data-ev="ev-{{ ev.id }}">{{ ev.title }}</button>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</div>
+
+<!-- ========================= EVENT POPUPS ========================= -->
+{% for ev in events %}
+    <div class="event-popup" id="ev-{{ ev.id }}">
+        <div class="event-popup-content nes-container is-rounded">
+            <button class="event-popup-close" type="button" data-close="ev-{{ ev.id }}">X</button>
+            <h3 class="popup-title">{{ ev.title }}</h3>
+            <div class="popup-by">by
+                <a href="{{ url_for('student_profile', student_id=ev.organizer_id) }}">{{ ev.organizer_name }}</a>
+            </div>
+            {% if ev.event_date %}<div class="popup-row">&#128197; {{ ev.event_date }}</div>{% endif %}
+            {% if ev.location %}<div class="popup-row">&#128205; {{ ev.location }}</div>{% endif %}
+            {% if ev.description %}<div class="popup-desc">{{ ev.description }}</div>{% endif %}
+            <div class="popup-actions">
+                {% if ev.link %}<a class="nes-btn is-success" href="{{ ev.link }}" target="_blank" rel="noopener">&#128279; Open link</a>{% endif %}
+                <details class="calendar-join">
+                    <summary class="nes-btn is-warning">&#9876; Ask to go</summary>
+                    <form action="{{ url_for('join_event', event_id=ev.id) }}" method="POST">
+                        <label>Your name</label>
+                        <input class="nes-input" type="text" name="requester_name" required>
+                        <label>Message (optional)</label>
+                        <input class="nes-input" type="text" name="message">
+                        <button class="nes-btn is-primary" type="submit">Send</button>
+                    </form>
+                </details>
+            </div>
+            {% set joins = requests_by_event.get(ev.id, []) %}
+            {% if joins %}
+                <div class="calendar-joins">
+                    <div class="join-heading">{{ joins|length }} want to go</div>
+                    {% for req in joins %}
+                        <div class="join-item"><strong>{{ req['requester_name'] }}</strong>{% if req['message'] %} &mdash; {{ req['message'] }}{% endif %}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endfor %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.event-chip-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var id = btn.getAttribute('data-ev');
+      var popup = document.getElementById(id);
+      if (popup) popup.classList.add('show');
+    });
+  });
+  document.querySelectorAll('.event-popup-close').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var id = btn.getAttribute('data-close');
+      var popup = document.getElementById(id);
+      if (popup) popup.classList.remove('show');
+    });
+  });
+  document.querySelectorAll('.event-popup').forEach(function(p) {
+    p.addEventListener('click', function(e) {
+      if (e.target === p) p.classList.remove('show');
+    });
+  });
+});
+</script>
+
+{% endblock %}

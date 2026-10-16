@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+<!-- =====================================================================
+     index.html  ->  route "/" (Official Bulletin & Culture Board)
+
+     Sections:
+       1. KOSEN Spotlight  - a random TED talk + a random meme (from the DB)
+       2. Official Bulletin - every announcement, newest first
+       3. Campus Rules & Guidelines - static reference list
+
+     The "ted_talk" and "meme" variables are picked randomly in app.py on
+     every page load.
+     ===================================================================== -->
+
+{% block content %}
+
+<h2 class="page-title">&#9876; KOSEN Spotlight &#9876;</h2>
+<p class="page-subtitle">Fresh inspiration &amp; memes, picked for you each visit</p>
+
+<!-- ==================== SPOTLIGHT: TED TALK + MEME ==================== -->
+<div class="spotlight-grid">
+
+    <!-- ---- Random TED talk ---- -->
+    <section class="nes-container with-title is-dark">
+        <p class="title">TED TALK</p>
+        {% if ted_talk %}
+            <!-- Clicking the thumbnail opens the talk on ted.com (needs wifi).
+                 The image itself is stored locally, so it always displays. -->
+            <a href="{{ ted_talk['url'] }}" target="_blank" rel="noopener">
+                <img class="spotlight-img"
+                     src="{{ url_for('static', filename=ted_talk['thumbnail']) }}"
+                     alt="{{ ted_talk['title'] }}">
+            </a>
+            <h3 class="spotlight-meta">{{ ted_talk['title'] }}</h3>
+            <p>{{ ted_talk['description'] }}</p>
+            <a class="nes-btn is-primary" href="{{ ted_talk['url'] }}"
+               target="_blank" rel="noopener">
+                <i class="nes-icon star is-small"></i> Watch on TED
+            </a>
+        {% else %}
+            <p>No TED talks in the database yet.</p>
+        {% endif %}
+    </section>
+
+    <!-- ---- Random meme ---- -->
+    <section class="nes-container with-title is-dark">
+        <p class="title">MEME OF THE DAY</p>
+        {% if meme %}
+            <img class="spotlight-img"
+                 src="{{ url_for('static', filename=meme['image_url']) }}"
+                 alt="meme">
+            <p class="meme-caption">{{ meme['caption'] }}</p>
+        {% else %}
+            <p>No memes in the database yet.</p>
+        {% endif %}
+    </section>
+
+</div>
+
+<!-- ======================== OFFICIAL BULLETIN ======================== -->
+<h2 class="page-title mt-2">Official Bulletin</h2>
+
+<div class="stack">
+    {% if announcements %}
+        {% for announcement in announcements %}
+            <section class="nes-container is-rounded">
+                <div class="row-between">
+                    <h3>{{ announcement['title'] }}</h3>
+                    <!-- Category tag; the colour comes from the CSS class -->
+                    <span class="tag is-{{ announcement['category']|lower }}">
+                        {{ announcement['category'] }}
+                    </span>
+                </div>
+                <p>{{ announcement['content'] }}</p>
+                <p style="font-size: 8px; color: #8a8aa0; margin-bottom: 0;">
+                    {{ announcement['created_at'] }}
+                </p>
+            </section>
+        {% endfor %}
+    {% else %}
+        <section class="nes-container is-rounded">
+            <p>No announcements yet.</p>
+        </section>
+    {% endif %}
+</div>
+
+<!-- ==================== CAMPUS RULES & GUIDELINES ==================== -->
+<h2 class="page-title mt-2">Campus Rules &amp; Guidelines</h2>
+<section class="nes-container is-rounded">
+    <ul class="nes-list is-disc">
+        <li>Respect all teachers and fellow students.</li>
+        <li>Follow workshop safety guidelines at all times.</li>
+        <li>Maintain academic integrity in all assignments.</li>
+        <li>Participate actively in LHR activities.</li>
+        <li>Use this hub as the official source of information.</li>
+    </ul>
+</section>
+
+{% endblock %}

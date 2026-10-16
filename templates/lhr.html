@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+<!-- =====================================================================
+     lhr.html  ->  route "/lhr" (LHR Games & Activity Center)
+
+     Shows every game/activity as a card. Each card links to that game's
+     detail page via its database id.
+     ===================================================================== -->
+
+{% block content %}
+
+<h2 class="page-title">&#127918; LHR Games &amp; Activity Center</h2>
+<p class="page-subtitle">Join exciting LHR games and activities organized for the class</p>
+
+<!-- Responsive grid of game cards (1 column on phones, more on desktop) -->
+<div class="cards-grid">
+    {% if lhr_games %}
+        {% for game in lhr_games %}
+            <section class="nes-container is-rounded">
+                <div class="row-between">
+                    <h3>{{ game['title'] }}</h3>
+                    <!-- Status tag, coloured by Upcoming / Active / Completed -->
+                    <span class="tag is-{{ game['status']|lower }}">{{ game['status'] }}</span>
+                </div>
+                <p>{{ game['rules'] }}</p>
+                <p><i class="nes-icon heart is-small"></i>
+                   Max Players: {{ game['max_players'] }}</p>
+                <a class="nes-btn is-primary"
+                   href="{{ url_for('game_detail', game_id=game['id']) }}">
+                    View Details &amp; Sign Up
+                </a>
+            </section>
+        {% endfor %}
+    {% else %}
+        <section class="nes-container is-rounded">
+            <p>No games available yet.</p>
+        </section>
+    {% endif %}
+</div>
+
+{% endblock %}

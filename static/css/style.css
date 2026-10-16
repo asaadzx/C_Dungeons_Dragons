@@ -1,0 +1,595 @@
+/* ===========================================================================
+   style.css
+   Custom theme for the C! RAS Hub on top of NES.css.
+
+   - Loads the "Press Start 2P" pixel font LOCALLY (offline-safe).
+   - Applies a Dungeons & Dragons colour theme (dark dungeon + gold + NES palette).
+   - Adds small layout helpers (grids, spacing) and a few custom bits NES.css
+     does not provide (brand bar, avatar, tags, responsive spotlight).
+
+   Load order in base.html:  nes.min.css  ->  style.css  (so we can override).
+   =========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   Pixel font, served from our own static folder (works with NO internet).
+   Path is relative to this file: static/css/style.css -> static/nes/fonts/
+   --------------------------------------------------------------------------- */
+@font-face {
+    font-family: 'Press Start 2P';
+    src: url('../nes/fonts/press-start-2p.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* ---------------------------------------------------------------------------
+   Theme palette (Dungeons & Dragons flavour using the classic NES colours)
+   --------------------------------------------------------------------------- */
+:root {
+    --dnd-bg:        #BE1A1A;   /* base red */
+    --dnd-bg-2:      #D0311E;   /* slightly lighter red */
+    --dnd-gold:      #F7D87F;   /* light gold - headings + accents */
+    --dnd-primary:   #F7D87F;   /* gold */
+    --dnd-success:   #F8EBAB;   /* cream */
+    --dnd-warning:   #F7D87F;   /* gold */
+    --dnd-error:     #BE1A1A;   /* red */
+    --dnd-ink:       #212529;   /* dark text on light panels */
+}
+
+/* ---------------------------------------------------------------------------
+   Page base
+   --------------------------------------------------------------------------- */
+* {
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+}
+
+body {
+    margin: 0;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;          /* pixel fonts read best small */
+    line-height: 1.9;
+    color: #111111;
+    background-color: #F8EBAB;
+    /* Subtle pixel-grid pattern for a retro feel. */
+    background-image:
+        linear-gradient(rgba(190, 26, 26, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(190, 26, 26, 0.04) 1px, transparent 1px);
+    background-size: 16px 16px;
+    text-shadow: 1px 1px 0 #ffffffaa;
+}
+
+/* Headings in the treasure-gold colour */
+h1, h2, h3, h4 {
+    font-family: 'Press Start 2P', monospace;
+    color: #BE1A1A;
+    line-height: 1.6;
+    margin-top: 0;
+    text-shadow: 2px 2px 0 #ffffffcc;
+}
+
+h2 { font-size: 1.4rem; }
+
+p, li, label, td, th {
+    font-family: 'Press Start 2P', monospace;
+}
+
+a { color: #BE1A1A; }
+a:hover { color: #D0311E; }
+
+/* Layout container */
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Top brand bar + navigation
+   --------------------------------------------------------------------------- */
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: var(--dnd-bg-2);
+    border-bottom: 4px solid var(--dnd-gold);
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4);
+}
+
+.topbar {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+}
+
+.brand {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 0.85rem;
+    color: #1f1f1f;
+    text-decoration: none;
+    line-height: 1.5;
+    text-shadow: 1px 1px 0 #ffffffcc;
+}
+
+.main-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+/* NES buttons inside the nav are a little large; tighten them up */
+.main-nav .nes-btn {
+    font-size: 9px;
+    padding: 6px 10px;
+    margin: 0;
+    color: #1f1f1f;
+}
+
+/* ---------------------------------------------------------------------------
+   Page section headings
+   --------------------------------------------------------------------------- */
+.page-title {
+    margin: 1.5rem 0 1rem;
+    text-align: center;
+}
+
+.page-subtitle {
+    text-align: center;
+    color: #2b2b2b;
+    margin-bottom: 1.5rem;
+}
+
+/* ---------------------------------------------------------------------------
+   KOSEN Spotlight (TED talk + meme) layout
+   --------------------------------------------------------------------------- */
+.spotlight-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    align-items: start;
+}
+
+@media (max-width: 720px) {
+    .spotlight-grid { grid-template-columns: 1fr; }
+}
+
+/* Remove the default extra margins NES.css adds to containers inside grids */
+.spotlight-grid .nes-container,
+.cards-grid .nes-container,
+.stack .nes-container {
+    margin: 0;
+}
+
+.spotlight-img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 4px solid #000;
+    /* keep pixel art crisp */
+    image-rendering: pixelated;
+}
+
+.spotlight-meta {
+    margin-top: 0.75rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Announcement / card grids
+   --------------------------------------------------------------------------- */
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Single column stack */
+.stack {
+    display: grid;
+    gap: 1rem;
+}
+
+/* Row used for a title + a right-aligned tag inside a container */
+.row-between {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Small custom "tag" chips (category / status labels)
+   --------------------------------------------------------------------------- */
+.tag {
+    display: inline-block;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    padding: 4px 6px;
+    border: 3px solid #000;
+    color: #000;
+    white-space: nowrap;
+}
+
+.tag.is-news    { background-color: var(--dnd-primary); color: #fff; }
+.tag.is-tip     { background-color: var(--dnd-success); }
+.tag.is-meme    { background-color: var(--dnd-warning); }
+.tag.is-ted     { background-color: var(--dnd-error); color: #fff; }
+.tag.is-upcoming { background-color: var(--dnd-warning); }
+.tag.is-active   { background-color: var(--dnd-success); }
+.tag.is-completed { background-color: #F7D87F; }
+.tag.is-admin   { background-color: var(--dnd-primary); color: #1f1f1f; }
+.tag.is-student { background-color: #F7D87F; }
+
+/* ---------------------------------------------------------------------------
+   Student avatar (pixel square with the first letter)
+   --------------------------------------------------------------------------- */
+.avatar {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 1.2rem;
+    color: #fff;
+    background-color: var(--dnd-primary);
+    border: 4px solid #000;
+    box-shadow: 4px 4px 0 #000;
+    margin: 0 auto 0.75rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Meme caption balloon
+   --------------------------------------------------------------------------- */
+.meme-caption {
+    margin-top: 0.75rem;
+    text-align: center;
+    color: var(--dnd-gold);
+    font-size: 0.8rem;
+    line-height: 1.8;
+}
+
+/* ---------------------------------------------------------------------------
+   Footer
+   --------------------------------------------------------------------------- */
+.site-footer {
+    margin-top: 2rem;
+    padding: 1.25rem;
+    text-align: center;
+    background-color: var(--dnd-bg-2);
+    border-top: 4px solid var(--dnd-gold);
+    color: #1f1f1f;
+    font-size: 0.7rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Tables (schedule) - make sure text wraps nicely on small screens
+   --------------------------------------------------------------------------- */
+.nes-table {
+    font-size: 0.7rem;
+}
+
+.nes-table th, .nes-table td {
+    white-space: normal;
+    line-height: 1.6;
+}
+
+/* ---------------------------------------------------------------------------
+   Community Events form
+   --------------------------------------------------------------------------- */
+.events-form {
+    max-width: 720px;
+    margin: 1rem auto 1.5rem;
+    text-align: left;
+}
+
+/* ---------------------------------------------------------------------------
+   Month calendar
+   --------------------------------------------------------------------------- */
+.month-calendar-wrap {
+    max-width: 1100px;
+    margin: 0 auto 1.5rem;
+}
+
+.month-calendar {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 2px;
+    border: 4px solid #000;
+    background: #fff8dc;
+    font-size: 0.6rem;
+}
+
+.month-calendar thead th {
+    background: var(--dnd-bg-2);
+    color: #1f1f1f;
+    padding: 0.4rem;
+    border: 2px solid #000;
+    text-align: center;
+}
+
+.calendar-cell {
+    width: 14.2857%;
+    height: 110px;
+    border: 2px solid #000;
+    vertical-align: top;
+    padding: 0.3rem;
+    background: #fff;
+}
+
+.calendar-cell.is-today {
+    background: #fff7d6;
+    box-shadow: inset 0 0 0 2px #be1a1a;
+}
+
+.day-number {
+    font-weight: bold;
+    color: #be1a1a;
+    margin-bottom: 0.2rem;
+    text-shadow: 1px 1px 0 #fff;
+}
+
+.cell-events {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.event-chip-btn {
+    font-size: 0.55rem;
+    background: #f7d87f;
+    border: 2px solid #000;
+    padding: 0.15rem 0.3rem;
+    cursor: pointer;
+    font-family: 'Press Start 2P', monospace;
+    text-align: left;
+    width: 100%;
+    margin-bottom: 0.2rem;
+}
+
+.event-popup {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.event-popup.show {
+    display: flex;
+}
+
+.event-popup-content {
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #fff8dc;
+    position: relative;
+    text-align: left;
+}
+
+.event-popup-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: #be1a1a;
+    color: #fff;
+    border: 2px solid #000;
+    font-family: 'Press Start 2P', monospace;
+    cursor: pointer;
+    font-size: 0.6rem;
+    padding: 0.2rem 0.4rem;
+}
+
+.popup-title {
+    color: #be1a1a;
+    font-size: 0.9rem;
+    margin: 0 2rem 0.5rem 0;
+    text-shadow: 1px 1px 0 #fff;
+}
+
+.popup-by, .popup-row {
+    font-size: 0.7rem;
+    color: #111111;
+    margin: 0.3rem 0;
+}
+
+.popup-desc {
+    font-size: 0.65rem;
+    line-height: 1.8;
+    color: #111111;
+    white-space: pre-wrap;
+    margin: 0.5rem 0;
+}
+
+.popup-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+}
+
+.event-by, .event-loc, .event-desc {
+    font-size: 0.55rem;
+    color: #1f1f1f;
+    line-height: 1.6;
+}
+
+.event-desc {
+    white-space: pre-wrap;
+}
+
+.calendar-join form {
+    display: grid;
+    gap: 0.25rem;
+    margin-top: 0.3rem;
+    background: #fff;
+    padding: 0.4rem;
+    border: 2px solid #000;
+}
+
+.calendar-joins {
+    margin-top: 0.4rem;
+    padding-top: 0.4rem;
+    border-top: 2px dashed rgba(190,26,26,0.3);
+}
+
+.join-heading {
+    font-size: 0.55rem;
+    color: #be1a1a;
+    margin: 0 0 0.2rem;
+    text-shadow: 1px 1px 0 #ffffffcc;
+}
+
+.join-item {
+    font-size: 0.5rem;
+    color: #1f1f1f;
+    margin: 0.15rem 0;
+}
+
+@media (max-width: 900px) {
+    .calendar-cell {
+        height: 90px;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Directory additions
+   --------------------------------------------------------------------------- */
+.add-form {
+    max-width: 760px;
+    margin: 0 auto 1.25rem;
+    text-align: left;
+}
+
+.student-card {
+    margin: 0;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.student-name {
+    color: #BE1A1A;
+    text-decoration: none;
+    text-shadow: 1px 1px 0 #ffffffcc;
+}
+
+.student-about {
+    font-size: 0.7rem;
+    line-height: 1.8;
+    margin: 0.5rem 0 0.6rem;
+    color: #1f1f1f;
+}
+
+.contact-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.4rem;
+    margin: 0.4rem 0 0.6rem;
+}
+
+.contact-link {
+    font-size: 0.65rem;
+    text-decoration: none;
+    border-bottom: 1px dashed var(--dnd-gold);
+    line-height: 1.8;
+}
+
+/* ---------------------------------------------------------------------------
+   Student profile page
+   --------------------------------------------------------------------------- */
+.profile-wrap {
+    max-width: 700px;
+    margin: 0.25rem auto 1rem;
+}
+
+.profile-card {
+    margin: 0;
+}
+
+.avatar-lg {
+    width: 72px;
+    height: 72px;
+    font-size: 1.6rem;
+}
+
+.profile-name {
+    margin-top: 0.6rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Form layout helpers for new forms (NES.css + custom)
+   --------------------------------------------------------------------------- */
+.events-form form,
+.add-form form {
+    display: grid;
+    gap: 0.6rem;
+    text-align: left;
+}
+
+.events-form label,
+.add-form label,
+.join-form label {
+    font-size: 0.7rem;
+    color: #111111;
+    margin-top: 0.25rem;
+    text-shadow: 1px 1px 0 #ffffffcc;
+}
+
+.events-form .title,
+.add-form .title {
+    color: #BE1A1A;
+    text-shadow: 2px 2px 0 #ffffffcc;
+}
+
+.field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem;
+}
+
+@media (max-width: 720px) {
+    .field-row { grid-template-columns: 1fr; }
+}
+
+/* Flash messages */
+.flash-area {
+    max-width: 720px;
+    margin: 1rem auto -0.25rem;
+    display: grid;
+    gap: 0.6rem;
+}
+
+.flash {
+    border: 4px solid #000;
+    background: var(--dnd-bg-2);
+    padding: 0.6rem 0.9rem;
+    font-size: 0.7rem;
+    line-height: 1.7;
+}
+
+.flash-success { border-color: var(--dnd-success); box-shadow: 0 0 0 3px rgba(146, 204, 65, 0.2); }
+.flash-error   { border-color: var(--dnd-error);   box-shadow: 0 0 0 3px rgba(231, 110, 85, 0.2); }
+.flash-info    { border-color: var(--dnd-primary); box-shadow: 0 0 0 3px rgba(32, 156, 238, 0.2); }
+
+/* Utility */
+.center { text-align: center; }
+.mt-1 { margin-top: 0.75rem; }
+.mt-2 { margin-top: 1.5rem; }

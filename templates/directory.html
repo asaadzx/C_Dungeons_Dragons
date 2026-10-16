@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+<!-- =====================================================================
+     directory.html  ->  route "/directory" (Student Directory)
+
+     Shows every classmate as a profile card with their contact/social links.
+     Each card links to the full profile page (/student/<id>), which also
+     lists the events that student has posted on the Community Events board.
+
+     The "Add yourself" form posts to "/directory/add" so new students can
+     create their own profile (no login yet - see the roadmap).
+     ===================================================================== -->
+
+{% block content %}
+
+<h2 class="page-title">&#128101; Student Directory</h2>
+<p class="page-subtitle">Meet the members of C1 &mdash; interests, links and how to reach them</p>
+
+<!-- ===================== ADD YOURSELF (form) ===================== -->
+<!-- Collapsible so the directory grid stays tidy until it is needed. -->
+<details class="add-form nes-container is-rounded">
+    <summary class="nes-btn is-primary">+ Add yourself to the directory</summary>
+    <form action="{{ url_for('add_student') }}" method="POST" class="mt-2">
+
+        <label for="name">Your name</label>
+        <input class="nes-input" type="text" id="name" name="name"
+               placeholder="e.g. Nour Hassan" required>
+
+        <label for="role">Role</label>
+        <div class="nes-select">
+            <select id="role" name="role">
+                <option value="Student" selected>Student</option>
+                <option value="Leader">Leader</option>
+                <option value="Admin">Admin</option>
+            </select>
+        </div>
+
+        <label for="interests">About you / interests</label>
+        <textarea class="nes-textarea" id="interests" name="interests"
+                  placeholder="Tell everyone what you are into..."></textarea>
+
+        <div class="field-row">
+            <div>
+                <label for="website">Website</label>
+                <input class="nes-input" type="url" id="website" name="website"
+                       placeholder="https://...">
+            </div>
+            <div>
+                <label for="phone">Phone</label>
+                <input class="nes-input" type="text" id="phone" name="phone"
+                       placeholder="+20 ...">
+            </div>
+        </div>
+
+        <div class="field-row">
+            <div>
+                <label for="facebook">Facebook</label>
+                <input class="nes-input" type="url" id="facebook" name="facebook"
+                       placeholder="https://facebook.com/...">
+            </div>
+            <div>
+                <label for="instagram">Instagram</label>
+                <input class="nes-input" type="url" id="instagram" name="instagram"
+                       placeholder="https://instagram.com/...">
+            </div>
+        </div>
+
+        <label for="email">Email</label>
+        <input class="nes-input" type="email" id="email" name="email"
+               placeholder="you@example.com">
+
+        <button type="submit" class="nes-btn is-primary mt-1">Add my profile</button>
+    </form>
+</details>
+
+<!-- ====================== STUDENT CARDS GRID ====================== -->
+<div class="cards-grid">
+    {% if students %}
+        {% for student in students %}
+            <section class="nes-container is-rounded center student-card">
+                <!-- Pixel avatar with the first letter of the name. -->
+                <div class="avatar">{{ student['name'][0].upper() }}</div>
+                <h3>
+                    <!-- Name links to the full profile page. -->
+                    <a href="{{ url_for('student_profile', student_id=student['id']) }}"
+                       class="student-name">{{ student['name'] }}</a>
+                </h3>
+                <span class="tag is-{{ student['role']|lower }}">{{ student['role'] }}</span>
+
+                {% if student['interests'] %}
+                    <p class="student-about">{{ student['interests'] }}</p>
+                {% endif %}
+
+                <!-- Contact + social links (each only shown if it was filled in). -->
+                <div class="contact-links">
+                    {% if student['website'] %}
+                        <a class="contact-link" href="{{ student['website'] }}"
+                           target="_blank" rel="noopener">&#127760; Website</a>
+                    {% endif %}
+                    {% if student['facebook'] %}
+                        <a class="contact-link" href="{{ student['facebook'] }}"
+                           target="_blank" rel="noopener">&#128216; Facebook</a>
+                    {% endif %}
+                    {% if student['instagram'] %}
+                        <a class="contact-link" href="{{ student['instagram'] }}"
+                           target="_blank" rel="noopener">&#128247; Instagram</a>
+                    {% endif %}
+                    {% if student['phone'] %}
+                        <!-- tel: opens the phone dialer on mobile. -->
+                        <a class="contact-link" href="tel:{{ student['phone'] }}">&#128222; {{ student['phone'] }}</a>
+                    {% endif %}
+                    {% if student['email'] %}
+                        <!-- mailto: opens the mail app. -->
+                        <a class="contact-link" href="mailto:{{ student['email'] }}">&#9993; {{ student['email'] }}</a>
+                    {% endif %}
+                </div>
+
+                <a class="nes-btn is-success mt-1"
+                   href="{{ url_for('student_profile', student_id=student['id']) }}">View profile</a>
+            </section>
+        {% endfor %}
+    {% else %}
+        <section class="nes-container is-rounded">
+            <p>No students found.</p>
+        </section>
+    {% endif %}
+</div>
+
+{% endblock %}
