@@ -3,7 +3,7 @@ import io
 from datetime import date
 
 REQUIRED_COLUMNS = {"date", "student_id", "name_en", "name_ar", "status", "note"}
-ALLOWED_STATUSES = {"present", "absent"}
+ALLOWED_STATUSES = {"present", "absent", "late"}
 
 
 def parse_daily_csv(file_storage):
@@ -85,6 +85,7 @@ def aggregate_weekly(files, students):
     summary = []
     for student in students:
         present = 0
+        late = 0
         absent = 0
         absent_dates = []
         for day in sorted(by_day):
@@ -95,17 +96,21 @@ def aggregate_weekly(files, students):
                 raise ValueError(
                     f"student {student.id} is missing from {day.isoformat()}"
                 )
-            if row["status"] == "present":
-                present += 1
-            else:
+            if row["status"] == "absent":
                 absent += 1
                 absent_dates.append(day.isoformat())
+            else:
+                # Both present and late count as attended for the percentage.
+                present += 1
+                if row["status"] == "late":
+                    late += 1
         summary.append(
             {
                 "student_id": student.id,
                 "name_en": student.name_en,
                 "name_ar": student.name_ar,
                 "present": present,
+                "late": late,
                 "absent": absent,
                 "percentage": round((present / 5) * 100, 1),
                 "absent_dates": absent_dates,
@@ -114,7 +119,9 @@ def aggregate_weekly(files, students):
 
     return {
         "dates": [day.isoformat() for day in sorted(by_day)],
+        "missing_days": [],
         "students": summary,
         "total_present": sum(item["present"] for item in summary),
+        "total_late": sum(item["late"] for item in summary),
         "total_absent": sum(item["absent"] for item in summary),
     }

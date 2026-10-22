@@ -14,6 +14,8 @@ from flask import (
 from flask_login import current_user, login_required
 
 from . import bp
+from .dbweekly import aggregate_saved_week, most_recent_sunday
+from .exports import build_excel, build_png
 from .services import active_students, daily_csv, get_session, save_attendance
 from .weekly import aggregate_weekly
 from ..models import AttendanceSession, Student
@@ -33,13 +35,13 @@ def daily():
     attendance_session = get_session(day)
 
     if request.method == "POST":
-        present_ids = set()
+        statuses = {}
         notes = {}
         for student in active_students():
-            if request.form.get(f"present_{student.id}") == "on":
-                present_ids.add(student.id)
+            # Each student has a status_<id> field: present / late / absent.
+            statuses[student.id] = request.form.get(f"status_{student.id}", "present")
             notes[student.id] = request.form.get(f"note_{student.id}", "")
-        save_attendance(day, present_ids, notes, current_user.id)
+        save_attendance(day, statuses, notes, current_user.id)
         flash(f"Attendance saved for {day.isoformat()}.", "success")
         return redirect(url_for("attendance.daily", date=day.isoformat()))
 
@@ -69,6 +71,32 @@ def export_csv():
     )
 
 
+@bp.get("/attendance/export.xlsx")
+@login_required
+def export_xlsx():
+    day = _parse_day(request.args.get("date", date.today().isoformat()))
+    return Response(
+        build_excel(day),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f"attachment; filename={day.isoformat()}-c1-attendance.xlsx"
+        },
+    )
+
+
+@bp.get("/attendance/export.png")
+@login_required
+def export_png():
+    day = _parse_day(request.args.get("date", date.today().isoformat()))
+    return Response(
+        build_png(day),
+        mimetype="image/png",
+        headers={
+            "Content-Disposition": f"attachment; filename={day.isoformat()}-c1-attendance.png"
+        },
+    )
+
+
 @bp.route("/attendance/week", methods=["GET", "POST"])
 @login_required
 def weekly():
@@ -85,6 +113,14 @@ def weekly():
     return render_template("attendance/weekly.html", summary=summary)
 
 
+@bp.get("/attendance/week/saved")
+@login_required
+def week_saved():
+    start = _parse_day(request.args.get("start", most_recent_sunday().isoformat()))
+    summary = aggregate_saved_week(start)
+    return render_template("attendance/week_saved.html", summary=summary, start=start)
+
+
 @bp.get("/attendance/week/export.csv")
 @login_required
 def weekly_export():
@@ -96,7 +132,7 @@ def weekly_export():
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(
-        ["student_id", "name_en", "name_ar", "present", "absent", "percentage", "absent_dates"]
+        ["student_id", "name_en", "name_ar", "present", "late", "absent", "percentage", "absent_dates"]
     )
     for item in summary["students"]:
         writer.writerow(
@@ -105,6 +141,7 @@ def weekly_export():
                 item["name_en"],
                 item["name_ar"],
                 item["present"],
+                item.get("late", 0),
                 item["absent"],
                 item["percentage"],
                 " ".join(item["absent_dates"]),

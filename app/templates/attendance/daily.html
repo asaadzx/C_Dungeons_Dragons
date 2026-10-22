@@ -32,8 +32,8 @@
     <div class="row-between">
         <h3>{{ day.isoformat() }}</h3>
         <div>
-            <button class="nes-btn is-success" type="button" id="allBtn">Check all</button>
-            <button class="nes-btn is-warning" type="button" id="noneBtn">Uncheck all</button>
+            <button class="nes-btn is-success" type="button" id="allBtn">All present</button>
+            <button class="nes-btn is-warning" type="button" id="noneBtn">All absent</button>
         </div>
     </div>
 
@@ -44,7 +44,7 @@
         <table class="nes-table is-bordered is-centered">
             <thead>
                 <tr>
-                    <th>Present</th>
+                    <th>Status</th>
                     <th>Name (English)</th>
                     <th>الاسم (عربي)</th>
                     <th>Note</th>
@@ -53,12 +53,14 @@
             <tbody>
                 {% for student in students %}
                     {% set record = records.get(student.id) %}
-                    <tr>
+                    {% set current = record.status if record else 'present' %}
+                    <tr class="status-row status-{{ current }}">
                         <td>
-                            <label>
-                                <input type="checkbox" name="present_{{ student.id }}"
-                                       {% if record is none or record.status == 'present' %}checked{% endif %}>
-                            </label>
+                            <select class="nes-select att-status" name="status_{{ student.id }}">
+                                <option value="present" {% if current == 'present' %}selected{% endif %}>Present</option>
+                                <option value="late" {% if current == 'late' %}selected{% endif %}>Late</option>
+                                <option value="absent" {% if current == 'absent' %}selected{% endif %}>Absent</option>
+                            </select>
                         </td>
                         <td>{{ student.name_en }}</td>
                         <td dir="rtl">{{ student.name_ar }}</td>
@@ -75,19 +77,24 @@
         <button class="nes-btn is-primary mt-1" type="submit">Save attendance</button>
         <a class="nes-btn is-success mt-1"
            href="{{ url_for('attendance.export_csv', date=day.isoformat()) }}">Export CSV</a>
+        <a class="nes-btn is-success mt-1"
+           href="{{ url_for('attendance.export_xlsx', date=day.isoformat()) }}">Export Excel</a>
+        <a class="nes-btn is-warning mt-1"
+           href="{{ url_for('attendance.export_png', date=day.isoformat()) }}">Export Image</a>
         <button class="nes-btn mt-1" type="button" onclick="window.print()">Print / PDF</button>
     </form>
 </section>
 
 <script>
+// "Check all" / "Uncheck all" set every student's status select at once.
 document.getElementById('allBtn')?.addEventListener('click', function () {
-  document.querySelectorAll('input[name^="present_"]').forEach(function (box) {
-    box.checked = true;
+  document.querySelectorAll('select[name^="status_"]').forEach(function (sel) {
+    sel.value = 'present';
   });
 });
 document.getElementById('noneBtn')?.addEventListener('click', function () {
-  document.querySelectorAll('input[name^="present_"]').forEach(function (box) {
-    box.checked = false;
+  document.querySelectorAll('select[name^="status_"]').forEach(function (sel) {
+    sel.value = 'absent';
   });
 });
 </script>

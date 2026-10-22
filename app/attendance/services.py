@@ -4,16 +4,30 @@ import io
 from ..extensions import db
 from ..models import AttendanceRecord, AttendanceSession, Student
 
+# The only attendance states the app accepts. "late" counts as attended later.
+ALLOWED_STATUSES = {"present", "absent", "late"}
+
 
 def active_students():
+    """Return the active roster, sorted by English name."""
     return Student.query.filter_by(active=True).order_by(Student.name_en).all()
 
 
 def get_session(day):
+    """Return the saved attendance session for a date, or None."""
     return AttendanceSession.query.filter_by(date=day).first()
 
 
-def save_attendance(day, present_ids, notes, user_id):
+def save_attendance(day, statuses, notes, user_id):
+    """Create or replace the attendance session for one day.
+
+    statuses is a {student_id: "present"|"late"|"absent"} mapping. Any student
+    missing from the mapping defaults to present. Re-saving the same date
+    updates the existing session instead of creating a duplicate.
+
+    We delete and recreate the records so the saved row set always matches the
+    current active roster (students added later are not silently missing).
+    """
     session = get_session(day)
     if session is None:
         session = AttendanceSession(date=day, created_by=user_id)
@@ -27,11 +41,14 @@ def save_attendance(day, present_ids, notes, user_id):
     db.session.flush()
 
     for student in active_students():
+        status = statuses.get(student.id, "present")
+        if status not in ALLOWED_STATUSES:
+            status = "present"
         db.session.add(
             AttendanceRecord(
                 session_id=session.id,
                 student_id=student.id,
-                status="present" if student.id in present_ids else "absent",
+                status=status,
                 note=(notes.get(student.id) or "").strip()[:500],
             )
         )

@@ -80,3 +80,15 @@ def test_aggregate_rejects_bad_status():
 def test_aggregate_requires_five_files():
     with pytest.raises(ValueError, match="exactly 5"):
         aggregate_weekly([], [FakeStudent(1)])
+
+
+def test_aggregate_counts_late_as_present():
+    students = [FakeStudent(1)]
+    days = ["2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23"]
+    files = [FakeUpload(_csv(day, {1: "late"}), filename=f"{day}.csv") for day in days]
+    result = aggregate_weekly(files, students)
+    student = result["students"][0]
+    assert student["present"] == 5
+    assert student["late"] == 5
+    assert student["absent"] == 0
+    assert student["percentage"] == 100.0
