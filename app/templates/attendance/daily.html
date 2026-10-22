@@ -75,11 +75,13 @@
         </table>
 
         <button class="nes-btn is-primary mt-1" type="submit">Save attendance</button>
-        <a class="nes-btn is-success mt-1"
+        <!-- Export links are filled in by the script below from the loaded day,
+             so they always match the attendance shown on this page. -->
+        <a class="nes-btn is-success mt-1" id="csvBtn"
            href="{{ url_for('attendance.export_csv', date=day.isoformat()) }}">Export CSV</a>
-        <a class="nes-btn is-success mt-1"
+        <a class="nes-btn is-success mt-1" id="xlsxBtn"
            href="{{ url_for('attendance.export_xlsx', date=day.isoformat()) }}">Export Excel</a>
-        <a class="nes-btn is-warning mt-1"
+        <a class="nes-btn is-warning mt-1" id="pngBtn"
            href="{{ url_for('attendance.export_png', date=day.isoformat()) }}">Export Image</a>
         <button class="nes-btn mt-1" type="button" onclick="window.print()">Print / PDF</button>
     </form>

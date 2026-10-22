@@ -36,22 +36,37 @@ def save_attendance(day, statuses, notes, user_id):
     else:
         session.created_by = user_id
 
-    for record in list(session.records):
-        db.session.delete(record)
-    db.session.flush()
+    # Update the rows we already have instead of deleting and recreating them.
+    # Re-saving is common (fixing one absent student), so this keeps writes
+    # small and avoids a full delete/insert round trip on every save.
+    existing = {record.student_id: record for record in session.records}
+    seen = set()
 
     for student in active_students():
         status = statuses.get(student.id, "present")
         if status not in ALLOWED_STATUSES:
             status = "present"
-        db.session.add(
-            AttendanceRecord(
-                session_id=session.id,
-                student_id=student.id,
-                status=status,
-                note=(notes.get(student.id) or "").strip()[:500],
+        note = (notes.get(student.id) or "").strip()[:500]
+        record = existing.get(student.id)
+        if record is None:
+            db.session.add(
+                AttendanceRecord(
+                    session_id=session.id,
+                    student_id=student.id,
+                    status=status,
+                    note=note,
+                )
             )
-        )
+        else:
+            record.status = status
+            record.note = note
+        seen.add(student.id)
+
+    # Drop rows for students who are no longer active.
+    for student_id, record in existing.items():
+        if student_id not in seen:
+            db.session.delete(record)
+
     db.session.commit()
     return session
 

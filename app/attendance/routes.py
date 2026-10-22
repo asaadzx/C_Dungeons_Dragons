@@ -28,6 +28,19 @@ def _parse_day(value):
         return date.today()
 
 
+def _download(payload, mimetype, filename):
+    """Build a file-download response that is never cached by the browser.
+
+    Exports always use the same URL for a given date, so without no-store the
+    browser would serve the previous download after a re-save, making it look
+    like the image/CSV never updated. no-store forces a fresh fetch every time.
+    """
+    response = Response(payload, mimetype=mimetype)
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response
+
+
 @bp.route("/attendance", methods=["GET", "POST"])
 @login_required
 def daily():
@@ -62,12 +75,8 @@ def daily():
 @login_required
 def export_csv():
     day = _parse_day(request.args.get("date", date.today().isoformat()))
-    return Response(
-        daily_csv(day),
-        mimetype="text/csv",
-        headers={
-            "Content-Disposition": f"attachment; filename={day.isoformat()}-c1-attendance.csv"
-        },
+    return _download(
+        daily_csv(day), "text/csv", f"{day.isoformat()}-c1-attendance.csv"
     )
 
 
@@ -75,12 +84,10 @@ def export_csv():
 @login_required
 def export_xlsx():
     day = _parse_day(request.args.get("date", date.today().isoformat()))
-    return Response(
+    return _download(
         build_excel(day),
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={
-            "Content-Disposition": f"attachment; filename={day.isoformat()}-c1-attendance.xlsx"
-        },
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        f"{day.isoformat()}-c1-attendance.xlsx",
     )
 
 
@@ -88,12 +95,8 @@ def export_xlsx():
 @login_required
 def export_png():
     day = _parse_day(request.args.get("date", date.today().isoformat()))
-    return Response(
-        build_png(day),
-        mimetype="image/png",
-        headers={
-            "Content-Disposition": f"attachment; filename={day.isoformat()}-c1-attendance.png"
-        },
+    return _download(
+        build_png(day), "image/png", f"{day.isoformat()}-c1-attendance.png"
     )
 
 
