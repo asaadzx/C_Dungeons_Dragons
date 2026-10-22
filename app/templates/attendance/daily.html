@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+<!-- =====================================================================
+     daily.html  ->  route "/attendance" (Daily attendance checklist)
+     One checklist per day. All students default to present; uncheck absentees.
+     ===================================================================== -->
+
+{% block content %}
+
+<h2 class="page-title">&#128203; Daily Attendance</h2>
+<p class="page-subtitle">Mark today's attendance for C1. Unchecked names count as absent.</p>
+
+<!-- ===================== LOAD A DAY (GET) ===================== -->
+<section class="nes-container with-title is-rounded">
+    <p class="title">Load a day</p>
+    <form method="GET" action="{{ url_for('attendance.daily') }}">
+        <label for="date">Date</label>
+        <input class="nes-input" type="date" id="date" name="date" value="{{ day.isoformat() }}">
+        <button class="nes-btn is-primary mt-1" type="submit">Load day</button>
+    </form>
+    {% if recent %}
+        <p class="page-subtitle mt-1">
+            Recent:
+            {% for item in recent %}
+                <a href="{{ url_for('attendance.daily', date=item.date.isoformat()) }}">{{ item.date.isoformat() }}</a>{% if not loop.last %} &middot; {% endif %}
+            {% endfor %}
+        </p>
+    {% endif %}
+</section>
+
+<!-- ===================== CHECKLIST (POST) ===================== -->
+<section class="nes-container is-rounded mt-2">
+    <div class="row-between">
+        <h3>{{ day.isoformat() }}</h3>
+        <div>
+            <button class="nes-btn is-success" type="button" id="allBtn">Check all</button>
+            <button class="nes-btn is-warning" type="button" id="noneBtn">Uncheck all</button>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('attendance.daily') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="date" value="{{ day.isoformat() }}">
+
+        <table class="nes-table is-bordered is-centered">
+            <thead>
+                <tr>
+                    <th>Present</th>
+                    <th>Name (English)</th>
+                    <th>الاسم (عربي)</th>
+                    <th>Note</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                    {% set record = records.get(student.id) %}
+                    <tr>
+                        <td>
+                            <label>
+                                <input type="checkbox" name="present_{{ student.id }}"
+                                       {% if record is none or record.status == 'present' %}checked{% endif %}>
+                            </label>
+                        </td>
+                        <td>{{ student.name_en }}</td>
+                        <td dir="rtl">{{ student.name_ar }}</td>
+                        <td>
+                            <input class="nes-input" type="text" name="note_{{ student.id }}"
+                                   value="{{ record.note if record else '' }}"
+                                   placeholder="optional">
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <button class="nes-btn is-primary mt-1" type="submit">Save attendance</button>
+        <a class="nes-btn is-success mt-1"
+           href="{{ url_for('attendance.export_csv', date=day.isoformat()) }}">Export CSV</a>
+        <button class="nes-btn mt-1" type="button" onclick="window.print()">Print / PDF</button>
+    </form>
+</section>
+
+<script>
+document.getElementById('allBtn')?.addEventListener('click', function () {
+  document.querySelectorAll('input[name^="present_"]').forEach(function (box) {
+    box.checked = true;
+  });
+});
+document.getElementById('noneBtn')?.addEventListener('click', function () {
+  document.querySelectorAll('input[name^="present_"]').forEach(function (box) {
+    box.checked = false;
+  });
+});
+</script>
+
+{% endblock %}

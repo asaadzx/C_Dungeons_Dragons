@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+<!-- =====================================================================
+     weekly.html  ->  route "/attendance/week"
+     Upload five daily CSV files to calculate the week's attendance.
+     ===================================================================== -->
+
+{% block content %}
+
+<h2 class="page-title">&#128198; Weekly Attendance</h2>
+<p class="page-subtitle">Upload the five daily CSV files for the week.</p>
+
+<section class="nes-container with-title is-rounded">
+    <p class="title">Upload the week</p>
+    <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="files">Five daily CSV files</label>
+        <input class="nes-input" type="file" id="files" name="files" accept=".csv"
+               multiple required>
+        <button class="nes-btn is-primary mt-1" type="submit">Calculate week</button>
+    </form>
+</section>
+
+{% if summary %}
+<section class="nes-container is-rounded mt-2">
+    <div class="row-between">
+        <h3>Week of {{ summary.dates[0] }} &ndash; {{ summary.dates[-1] }}</h3>
+        <a class="nes-btn is-success"
+           href="{{ url_for('attendance.weekly_export') }}">Export weekly CSV</a>
+    </div>
+    <p class="page-subtitle">
+        {{ summary.dates|length }} days &middot;
+        {{ summary.total_present }} present marks &middot;
+        {{ summary.total_absent }} absent marks
+    </p>
+
+    <table class="nes-table is-bordered is-centered">
+        <thead>
+            <tr>
+                <th>Name (English)</th>
+                <th>الاسم (عربي)</th>
+                <th>Present</th>
+                <th>Absent</th>
+                <th>%</th>
+                <th>Absent dates</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in summary.students %}
+                <tr>
+                    <td>{{ item.name_en }}</td>
+                    <td dir="rtl">{{ item.name_ar }}</td>
+                    <td>{{ item.present }}</td>
+                    <td>{{ item.absent }}</td>
+                    <td>{{ item.percentage }}</td>
+                    <td>{{ item.absent_dates|join(', ') }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endif %}
+
+{% endblock %}

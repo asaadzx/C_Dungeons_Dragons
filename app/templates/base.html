@@ -28,17 +28,27 @@
     <header class="site-header">
         <div class="topbar">
             <!-- Brand / home link -->
-            <a class="brand" href="{{ url_for('index') }}">
+            <a class="brand" href="{{ url_for('hub.index') }}">
                 <i class="nes-icon star is-small"></i>
                 C! Dungeons &amp; Dragons
             </a>
 
             <!-- Main navigation. Each link is styled as a NES button. -->
             <nav class="main-nav">
-                <a href="{{ url_for('index') }}" class="nes-btn is-primary">Bulletin</a>
-                <a href="{{ url_for('lhr') }}" class="nes-btn is-success">LHR Games</a>
-                <a href="{{ url_for('directory') }}" class="nes-btn is-warning">Directory</a>
-                <a href="{{ url_for('schedule') }}" class="nes-btn is-error">Events</a>
+                <a href="{{ url_for('hub.index') }}" class="nes-btn is-primary">Bulletin</a>
+                <a href="{{ url_for('hub.lhr') }}" class="nes-btn is-success">LHR Games</a>
+                <a href="{{ url_for('hub.directory') }}" class="nes-btn is-warning">Directory</a>
+                <a href="{{ url_for('hub.schedule') }}" class="nes-btn is-error">Events</a>
+                <a href="{{ url_for('attendance.daily') }}" class="nes-btn is-primary">Attendance</a>
+                <a href="{{ url_for('attendance.weekly') }}" class="nes-btn is-warning">Weekly</a>
+                {% if current_user.is_authenticated %}
+                <form method="POST" action="{{ url_for('auth.logout') }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="nes-btn" type="submit">Log out</button>
+                </form>
+                {% else %}
+                <a href="{{ url_for('auth.login') }}" class="nes-btn">Staff login</a>
+                {% endif %}
             </nav>
         </div>
     </header>

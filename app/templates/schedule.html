@@ -13,7 +13,7 @@
 <!-- ======================= ADD AN EVENT (form) ======================= -->
 <section class="nes-container with-title is-rounded events-form">
     <p class="title">Post an event</p>
-    <form action="{{ url_for('add_event') }}" method="POST">
+    <form action="{{ url_for('hub.add_event') }}" method="POST">
 
         <label for="organizer_id">Who is organizing?</label>
         <div class="nes-select">
@@ -92,7 +92,7 @@
             <button class="event-popup-close" type="button" data-close="ev-{{ ev.id }}">X</button>
             <h3 class="popup-title">{{ ev.title }}</h3>
             <div class="popup-by">by
-                <a href="{{ url_for('student_profile', student_id=ev.organizer_id) }}">{{ ev.organizer_name }}</a>
+                <a href="{{ url_for('hub.student_profile', student_id=ev.organizer_id) }}">{{ ev.organizer_name }}</a>
             </div>
             {% if ev.event_date %}<div class="popup-row">&#128197; {{ ev.event_date }}</div>{% endif %}
             {% if ev.location %}<div class="popup-row">&#128205; {{ ev.location }}</div>{% endif %}
@@ -101,7 +101,7 @@
                 {% if ev.link %}<a class="nes-btn is-success" href="{{ ev.link }}" target="_blank" rel="noopener">&#128279; Open link</a>{% endif %}
                 <details class="calendar-join">
                     <summary class="nes-btn is-warning">&#9876; Ask to go</summary>
-                    <form action="{{ url_for('join_event', event_id=ev.id) }}" method="POST">
+                    <form action="{{ url_for('hub.join_event', event_id=ev.id) }}" method="POST">
                         <label>Your name</label>
                         <input class="nes-input" type="text" name="requester_name" required>
                         <label>Message (optional)</label>

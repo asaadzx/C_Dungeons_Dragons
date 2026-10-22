@@ -1,0 +1,28 @@
+{
+  "name": "c1_ras_hub",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "lint:js": "eslint app/static/js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/asaadzx/C_Dungeons_Dragons.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/asaadzx/C_Dungeons_Dragons/issues"
+  },
+  "homepage": "https://github.com/asaadzx/C_Dungeons_Dragons#readme",
+  "devDependencies": {
+    "eslint": "^9.39.5"
+  }
+}

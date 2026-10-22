@@ -24,3 +24,10 @@ instance/
 .DS_Store
 .env
 *.log
+
+# Node / ESLint
+node_modules/
+.eslintcache
+
+# Local docs / notes (not part of the deployed app)
+README.md

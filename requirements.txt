@@ -1,10 +1,10 @@
-# ---------------------------------------------------------------------------
-# requirements.txt
-# Python dependencies for the C! Dungeons & Dragons (C! RAS Hub) project.
-#
-# Install everything with:
-#     pip install -r requirements.txt
-# ---------------------------------------------------------------------------
-
-# Flask: the lightweight web framework that powers all the routes in app.py.
-Flask==3.0.3
+Flask>=3.1,<4
+Flask-SQLAlchemy>=3.1.1,<4
+Flask-Migrate>=4.0.7,<5
+Flask-Login>=0.6.3,<1
+Flask-WTF>=1.2.1,<2
+SQLAlchemy>=2.0.40,<2.1
+psycopg[binary]>=3.2,<4
+python-dotenv>=1.0,<2
+gunicorn>=23,<27
+pytest>=8.3,<10

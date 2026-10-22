@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="page-title">Staff Login</h2>
+<section class="nes-container is-rounded" style="max-width: 480px;">
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="username">Username</label>
+    <input class="nes-input" id="username" name="username" required autofocus>
+    <label for="password" class="mt-1">Password</label>
+    <input class="nes-input" id="password" name="password" type="password" required>
+    <button class="nes-btn is-primary mt-1" type="submit">Log in</button>
+  </form>
+</section>
+{% endblock %}

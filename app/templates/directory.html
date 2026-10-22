@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+<!-- =====================================================================
+     directory.html  ->  route "/directory" (Student Directory)
+
+     Shows every classmate as a profile card with their contact/social links.
+     Each card links to the full profile page (/student/<id>), which also
+     lists the events that student has posted on the Community Events board.
+
+     The roster is managed by staff from the database, not from a public form.
+     ===================================================================== -->
+
+{% block content %}
+
+<h2 class="page-title">&#128101; Student Directory</h2>
+<p class="page-subtitle">Meet the members of C1 &mdash; interests, links and how to reach them</p>
+
+<!-- ====================== STUDENT CARDS GRID ====================== -->
+<div class="cards-grid">
+    {% if students %}
+        {% for student in students %}
+            <section class="nes-container is-rounded center student-card">
+                <!-- Pixel avatar with the first letter of the name. -->
+                <div class="avatar">{{ student.name_en[0].upper() }}</div>
+                <h3>
+                    <!-- Name links to the full profile page. -->
+                    <a href="{{ url_for('hub.student_profile', student_id=student.id) }}"
+                       class="student-name">{{ student.name_en }}</a>
+                    {% if student.name_ar %}<div class="student-ar" dir="rtl">{{ student.name_ar }}</div>{% endif %}
+                </h3>
+
+                {% if student.interests %}
+                    <p class="student-about">{{ student.interests }}</p>
+                {% endif %}
+
+                <!-- Contact + social links (each only shown if it was filled in).
+                     All URLs are filtered through safe_url to block unsafe schemes. -->
+                {% set website = student.website|safe_url %}
+                {% set facebook = student.facebook|safe_url %}
+                {% set instagram = student.instagram|safe_url %}
+                <div class="contact-links">
+                    {% if website %}
+                        <a class="contact-link" href="{{ website }}"
+                           target="_blank" rel="noopener">&#127760; Website</a>
+                    {% endif %}
+                    {% if facebook %}
+                        <a class="contact-link" href="{{ facebook }}"
+                           target="_blank" rel="noopener">&#128216; Facebook</a>
+                    {% endif %}
+                    {% if instagram %}
+                        <a class="contact-link" href="{{ instagram }}"
+                           target="_blank" rel="noopener">&#128247; Instagram</a>
+                    {% endif %}
+                    {% if student.phone %}
+                        <!-- tel: opens the phone dialer on mobile. -->
+                        <a class="contact-link" href="tel:{{ student.phone }}">&#128222; {{ student.phone }}</a>
+                    {% endif %}
+                    {% if student.email %}
+                        <!-- mailto: opens the mail app. -->
+                        <a class="contact-link" href="mailto:{{ student.email }}">&#9993; {{ student.email }}</a>
+                    {% endif %}
+                </div>
+
+                <a class="nes-btn is-success mt-1"
+                   href="{{ url_for('hub.student_profile', student_id=student.id) }}">View profile</a>
+            </section>
+        {% endfor %}
+    {% else %}
+        <section class="nes-container is-rounded">
+            <p>No students found.</p>
+        </section>
+    {% endif %}
+</div>
+
+{% endblock %}
