@@ -153,12 +153,28 @@ table {
 }
 
 .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-family: 'Press Start 2P', monospace;
     font-size: 0.85rem;
     color: #1f1f1f;
     text-decoration: none;
     line-height: 1.5;
     text-shadow: 1px 1px 0 #ffffffcc;
+}
+
+/* Class logo shown next to the name in the top bar. */
+.brand-logo {
+    display: block;
+    height: 38px;
+    width: auto;
+    border-radius: 4px;
+}
+
+@media (max-width: 600px) {
+    .brand-logo { height: 30px; }
+    .brand-name { font-size: 0.65rem; }
 }
 
 .main-nav {

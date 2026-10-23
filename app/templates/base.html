@@ -17,6 +17,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>C! Dungeons &amp; Dragons - {{ t('app.title') }}</title>
 
+    <!-- Browser tab icon (generated from docs/Logo/Logo.png). -->
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32"
+          href="{{ url_for('static', filename='img/favicon-32.png') }}">
+    <link rel="apple-touch-icon"
+          href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+    <meta name="theme-color" content="#be1a1a">
+
     <!-- NES.css framework (stored locally in static/nes/ for offline use) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='nes/nes.min.css') }}">
     <!-- Our custom D&D theme + layout, loaded after NES.css so it overrides -->
@@ -29,8 +37,10 @@
         <div class="topbar">
             <!-- Brand / home link -->
             <a class="brand" href="{{ url_for('hub.index') }}">
-                <i class="nes-icon star is-small"></i>
-                C! Dungeons &amp; Dragons
+                <img class="brand-logo"
+                     src="{{ url_for('static', filename='img/logo.png') }}"
+                     alt="C! Dungeons &amp; Dragons logo">
+                <span class="brand-name">C! Dungeons &amp; Dragons</span>
             </a>
 
             <!-- Main navigation. Only the three main sections are always
