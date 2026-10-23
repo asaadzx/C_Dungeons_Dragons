@@ -2,7 +2,7 @@ import csv
 import io
 
 from ..extensions import db
-from ..models import AttendanceRecord, AttendanceSession, Student
+from ..models import AttendanceAudit, AttendanceRecord, AttendanceSession, Student
 
 # The only attendance states the app accepts. "late" counts as attended later.
 ALLOWED_STATUSES = {"present", "absent", "late"}
@@ -67,6 +67,9 @@ def save_attendance(day, statuses, notes, user_id):
         if student_id not in seen:
             db.session.delete(record)
 
+    db.session.add(
+        AttendanceAudit(session_id=session.id, changed_by=user_id, action="save", day=day)
+    )
     db.session.commit()
     return session
 

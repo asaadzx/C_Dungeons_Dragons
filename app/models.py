@@ -179,7 +179,9 @@ class Event(db.Model):
     title = db.Column(db.String(200), nullable=False)
     link = db.Column(db.String(500), nullable=False, default="")
     description = db.Column(db.Text, nullable=False, default="")
-    # Free-text date for now, e.g. "Fri 21 Nov". A future change will use Date.
+    # Real calendar date used for sorting and grid placement.
+    event_date_actual = db.Column(db.Date, nullable=True, index=True)
+    # Free-text date for display, e.g. "Fri 21 Nov".
     event_date = db.Column(db.String(100), nullable=False, default="")
     location = db.Column(db.String(200), nullable=False, default="")
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
@@ -201,3 +203,16 @@ class EventRequest(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
     event = db.relationship("Event")
+
+
+class AttendanceAudit(db.Model):
+    """Audit log for attendance changes."""
+
+    __tablename__ = "attendance_audits"
+
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey("attendance_sessions.id"), nullable=False)
+    changed_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    action = db.Column(db.String(50), nullable=False, default="save")
+    day = db.Column(db.Date, nullable=False, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)

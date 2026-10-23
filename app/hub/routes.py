@@ -14,7 +14,7 @@
 
 import calendar
 import re
-from datetime import datetime
+from datetime import date, datetime
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import login_required
@@ -97,8 +97,8 @@ def student_profile(student_id):
 def schedule():
     """Events calendar for the current month.
 
-    Note: event_date is currently free text (e.g. "Fri 21 Nov"), so we pull the
-    day number out with a regex. A future milestone should store real dates.
+    Prefer the real calendar date when available; fall back to parsing the
+    free-text event_date for older events.
     """
     events, requests_by_event = _events_with_requests()
     students = Student.query.filter_by(active=True).order_by(Student.name_en).all()
@@ -110,14 +110,20 @@ def schedule():
     # Group events by day number so the calendar grid can place them.
     events_by_day = {}
     for ev in events:
-        matches = re.findall(r"\b(\d{1,2})\b", ev.event_date or "")
-        if matches:
-            try:
-                day = int(matches[-1])
-            except ValueError:
-                continue
-            if 1 <= day <= 31:
-                events_by_day.setdefault(day, []).append(ev)
+        day = None
+        if getattr(ev, "event_date_actual", None) and ev.event_date_actual.month == now.month and ev.event_date_actual.year == now.year:
+            day = ev.event_date_actual.day
+        if day is None:
+            matches = re.findall(r"\b(\d{1,2})\b", ev.event_date or "")
+            if matches:
+                try:
+                    candidate = int(matches[-1])
+                except ValueError:
+                    candidate = None
+                if candidate and 1 <= candidate <= 31:
+                    day = candidate
+        if day:
+            events_by_day.setdefault(day, []).append(ev)
 
     return render_template(
         "schedule.html",
@@ -129,6 +135,16 @@ def schedule():
         today=now.day,
         events_by_day=events_by_day,
     )
+
+
+def _parse_event_date(value):
+    value = (value or "").strip()
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
 
 
 @bp.route("/schedule/add", methods=["POST"])
@@ -146,13 +162,19 @@ def add_event():
         flash("That organizer does not exist.", "error")
         return redirect(url_for("hub.schedule"))
 
+    event_date_actual = _parse_event_date(request.form.get("event_date_actual"))
+    event_date_display = request.form.get("event_date", "").strip()[:100]
+    if event_date_actual and not event_date_display:
+        event_date_display = event_date_actual.strftime("%a %d %b")
+
     db.session.add(
         Event(
             organizer_id=int(organizer_id),
             title=title[:200],
             link=request.form.get("link", "").strip()[:500],
             description=request.form.get("description", "").strip(),
-            event_date=request.form.get("event_date", "").strip()[:100],
+            event_date=event_date_display,
+            event_date_actual=event_date_actual,
             location=request.form.get("location", "").strip()[:200],
         )
     )

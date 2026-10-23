@@ -30,12 +30,20 @@
                 <div class="admin-item">
                     <div class="row-between">
                         <div><strong>{{ a.title }}</strong> <small>({{ a.category }})</small></div>
-                        <form method="POST" action="{{ url_for('admin.delete_announcement', item_id=a.id) }}">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button class="nes-btn is-error" type="submit">Delete</button>
-                        </form>
+                        <div>
+                            <form method="POST" action="{{ url_for('admin.edit_announcement', item_id=a.id) }}" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="category" value="{{ a.category }}">
+                                <input class="nes-input" name="title" value="{{ a.title }}" style="width:200px">
+                                <textarea class="nes-textarea" name="content">{{ a.content }}</textarea>
+                                <button class="nes-btn is-primary" type="submit">Save</button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin.delete_announcement', item_id=a.id) }}" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="nes-btn is-error" type="submit">Delete</button>
+                            </form>
+                        </div>
                     </div>
-                    <div>{{ a.content }}</div>
                 </div>
             {% endfor %}
         {% else %}
@@ -67,12 +75,28 @@
         <h4 class="mt-2">Existing</h4>
         {% if games %}
             {% for g in games %}
-                <div class="admin-item row-between">
-                    <div><strong>{{ g.title }}</strong> <span class="tag is-{{ g.status|lower }}">{{ g.status }}</span></div>
-                    <form method="POST" action="{{ url_for('admin.delete_lhr', item_id=g.id) }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button class="nes-btn is-error" type="submit">Delete</button>
-                    </form>
+                <div class="admin-item">
+                    <div class="row-between">
+                        <div><strong>{{ g.title }}</strong> <span class="tag is-{{ g.status|lower }}">{{ g.status }}</span></div>
+                        <div>
+                            <form method="POST" action="{{ url_for('admin.edit_lhr', item_id=g.id) }}" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input class="nes-input" name="title" value="{{ g.title }}" style="width:180px">
+                                <input class="nes-input" name="max_players" type="number" value="{{ g.max_players }}" style="width:80px">
+                                <select name="status">
+                                    <option value="Upcoming" {% if g.status=='Upcoming' %}selected{% endif %}>Upcoming</option>
+                                    <option value="Active" {% if g.status=='Active' %}selected{% endif %}>Active</option>
+                                    <option value="Completed" {% if g.status=='Completed' %}selected{% endif %}>Completed</option>
+                                </select>
+                                <textarea class="nes-textarea" name="rules">{{ g.rules }}</textarea>
+                                <button class="nes-btn is-primary" type="submit">Save</button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin.delete_lhr', item_id=g.id) }}" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="nes-btn is-error" type="submit">Delete</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             {% endfor %}
         {% else %}
@@ -94,12 +118,22 @@
         <h4 class="mt-2">Existing</h4>
         {% if memes %}
             {% for m in memes %}
-                <div class="admin-item row-between">
-                    <div>{{ m.caption or '(no caption)' }}</div>
-                    <form method="POST" action="{{ url_for('admin.delete_meme', item_id=m.id) }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button class="nes-btn is-error" type="submit">Delete</button>
-                    </form>
+                <div class="admin-item">
+                    <div class="row-between">
+                        <div>{{ m.caption or '(no caption)' }}</div>
+                        <div>
+                            <form method="POST" action="{{ url_for('admin.edit_meme', item_id=m.id) }}" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input class="nes-input" name="image_url" value="{{ m.image_url }}" style="width:220px">
+                                <input class="nes-input" name="caption" value="{{ m.caption }}" style="width:180px">
+                                <button class="nes-btn is-primary" type="submit">Save</button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin.delete_meme', item_id=m.id) }}" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="nes-btn is-error" type="submit">Delete</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             {% endfor %}
         {% else %}
@@ -125,12 +159,23 @@
         <h4 class="mt-2">Existing</h4>
         {% if ted_talks %}
             {% for t in ted_talks %}
-                <div class="admin-item row-between">
-                    <div><strong>{{ t.title }}</strong></div>
-                    <form method="POST" action="{{ url_for('admin.delete_ted', item_id=t.id) }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button class="nes-btn is-error" type="submit">Delete</button>
-                    </form>
+                <div class="admin-item">
+                    <div class="row-between">
+                        <div><strong>{{ t.title }}</strong></div>
+                        <div>
+                            <form method="POST" action="{{ url_for('admin.edit_ted', item_id=t.id) }}" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input class="nes-input" name="title" value="{{ t.title }}" style="width:200px">
+                                <input class="nes-input" name="url" value="{{ t.url }}" style="width:260px">
+                                <textarea class="nes-textarea" name="description">{{ t.description }}</textarea>
+                                <button class="nes-btn is-primary" type="submit">Save</button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin.delete_ted', item_id=t.id) }}" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="nes-btn is-error" type="submit">Delete</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             {% endfor %}
         {% else %}
@@ -139,6 +184,34 @@
     </section>
 
 </div>
+
+<section class="nes-container with-title is-rounded mt-2">
+    <p class="title">Attendance Audit Log (recent)</p>
+    {% if audits %}
+        <table class="nes-table is-bordered is-centered">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Changed by (user id)</th>
+                    <th>Action</th>
+                    <th>When</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in audits %}
+                    <tr>
+                        <td>{{ a.day }}</td>
+                        <td>{{ a.changed_by }}</td>
+                        <td>{{ a.action }}</td>
+                        <td>{{ a.created_at }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No attendance changes logged yet.</p>
+    {% endif %}
+</section>
 
 <p class="mt-2"><a href="{{ url_for('hub.index') }}">&larr; Back to bulletin</a></p>
 

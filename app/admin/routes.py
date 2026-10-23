@@ -10,7 +10,7 @@ from flask_login import current_user, login_required
 
 from . import bp
 from ..extensions import db
-from ..models import Announcement, LhrGame, Meme, TedTalk
+from ..models import Announcement, AttendanceAudit, LhrGame, Meme, TedTalk
 
 
 def _extract_youtube_id(url):
@@ -36,6 +36,7 @@ def index():
         games=LhrGame.query.order_by(LhrGame.id).all(),
         memes=Meme.query.order_by(Meme.id.desc()).all(),
         ted_talks=TedTalk.query.order_by(TedTalk.id.desc()).all(),
+        audits=AttendanceAudit.query.order_by(AttendanceAudit.created_at.desc()).limit(20).all(),
     )
 
 
@@ -51,6 +52,27 @@ def add_announcement():
     db.session.add(Announcement(title=title[:200], content=content, category=category[:20]))
     db.session.commit()
     flash("Announcement added.", "success")
+    return redirect(url_for("admin.index"))
+
+
+@bp.route("/admin/announcement/<int:item_id>/edit", methods=["POST"])
+@login_required
+def edit_announcement(item_id):
+    item = db.session.get(Announcement, item_id)
+    if not item:
+        flash("Announcement not found.", "error")
+        return redirect(url_for("admin.index"))
+    title = request.form.get("title", "").strip()
+    content = request.form.get("content", "").strip()
+    category = request.form.get("category", "News").strip() or "News"
+    if not title or not content:
+        flash("Title and content are required.", "error")
+        return redirect(url_for("admin.index"))
+    item.title = title[:200]
+    item.content = content
+    item.category = category[:20]
+    db.session.commit()
+    flash("Announcement updated.", "success")
     return redirect(url_for("admin.index"))
 
 
@@ -86,6 +108,32 @@ def add_lhr():
     return redirect(url_for("admin.index"))
 
 
+@bp.route("/admin/lhr/<int:item_id>/edit", methods=["POST"])
+@login_required
+def edit_lhr(item_id):
+    item = db.session.get(LhrGame, item_id)
+    if not item:
+        flash("Game not found.", "error")
+        return redirect(url_for("admin.index"))
+    title = request.form.get("title", "").strip()
+    rules = request.form.get("rules", "").strip()
+    if not title or not rules:
+        flash("Game title and rules are required.", "error")
+        return redirect(url_for("admin.index"))
+    try:
+        max_players = int(request.form.get("max_players") or item.max_players)
+    except ValueError:
+        max_players = item.max_players
+    status = request.form.get("status", item.status).strip() or item.status
+    item.title = title[:200]
+    item.rules = rules
+    item.max_players = max_players
+    item.status = status[:20]
+    db.session.commit()
+    flash("LHR game updated.", "success")
+    return redirect(url_for("admin.index"))
+
+
 @bp.route("/admin/lhr/<int:item_id>/delete", methods=["POST"])
 @login_required
 def delete_lhr(item_id):
@@ -110,6 +158,25 @@ def add_meme():
     db.session.add(Meme(image_url=image_url[:300], caption=caption))
     db.session.commit()
     flash("Meme added.", "success")
+    return redirect(url_for("admin.index"))
+
+
+@bp.route("/admin/meme/<int:item_id>/edit", methods=["POST"])
+@login_required
+def edit_meme(item_id):
+    item = db.session.get(Meme, item_id)
+    if not item:
+        flash("Meme not found.", "error")
+        return redirect(url_for("admin.index"))
+    image_url = request.form.get("image_url", "").strip()
+    caption = request.form.get("caption", "").strip()
+    if not image_url:
+        flash("Image URL or filename is required.", "error")
+        return redirect(url_for("admin.index"))
+    item.image_url = image_url[:300]
+    item.caption = caption
+    db.session.commit()
+    flash("Meme updated.", "success")
     return redirect(url_for("admin.index"))
 
 
@@ -144,6 +211,36 @@ def add_ted():
     db.session.add(TedTalk(title=title[:300], url=url[:500], thumbnail=thumbnail[:300], description=description))
     db.session.commit()
     flash("Video for Knowledge added.", "success")
+    return redirect(url_for("admin.index"))
+
+
+@bp.route("/admin/ted/<int:item_id>/edit", methods=["POST"])
+@login_required
+def edit_ted(item_id):
+    item = db.session.get(TedTalk, item_id)
+    if not item:
+        flash("Video not found.", "error")
+        return redirect(url_for("admin.index"))
+    title = request.form.get("title", "").strip()
+    url = request.form.get("url", "").strip()
+    thumbnail = request.form.get("thumbnail", "").strip()
+    description = request.form.get("description", "").strip()
+    if not title or not url:
+        flash("Title and URL are required.", "error")
+        return redirect(url_for("admin.index"))
+    item.title = title[:300]
+    item.url = url[:500]
+    item.description = description
+    if thumbnail:
+        item.thumbnail = thumbnail[:300]
+    else:
+        video_id = _extract_youtube_id(url)
+        if video_id:
+            item.thumbnail = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
+        elif not item.thumbnail:
+            item.thumbnail = "images/ted-placeholder.png"
+    db.session.commit()
+    flash("Video for Knowledge updated.", "success")
     return redirect(url_for("admin.index"))
 
 
