@@ -86,3 +86,37 @@ def test_home_shows_external_thumbnail(client, app):
     page = client.get("/").data.decode()
     assert "VIDEO FOR KNOWLEDGE" in page
     assert "img.youtube.com/vi/ZL6QfJU5VeQ" in page
+
+
+def test_news_source_add_edit_delete(client, app):
+    token = _login(client, app)
+
+    # Add a source from the staff panel.
+    client.post(
+        "/admin/news-source",
+        data={"csrf_token": token, "label": "Example", "url": "https://example.com/rss"},
+    )
+    with app.app_context():
+        from app.models import NewsSource
+
+        source = NewsSource.query.filter_by(label="Example").one()
+        source_id = source.id
+
+    # Edit the label and temporarily disable it.
+    client.post(
+        f"/admin/news-source/{source_id}/edit",
+        data={"csrf_token": token, "label": "Example 2", "url": "https://example.com/rss"},
+    )
+    with app.app_context():
+        from app.models import NewsSource
+
+        source = db.session.get(NewsSource, source_id)
+        assert source.label == "Example 2"
+        assert source.active is False
+
+    # Delete it.
+    client.post(f"/admin/news-source/{source_id}/delete", data={"csrf_token": token})
+    with app.app_context():
+        from app.models import NewsSource
+
+        assert db.session.get(NewsSource, source_id) is None

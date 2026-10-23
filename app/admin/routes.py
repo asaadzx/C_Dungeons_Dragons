@@ -17,10 +17,12 @@ from ..models import (
     EventRequest,
     LhrGame,
     Meme,
+    NewsSource,
     Student,
     TedTalk,
 )
-from ..news.feeds import FEEDS
+from ..news.feeds import clear_cache as clear_news_cache
+from ..news.feeds import ensure_news_sources
 
 CLASS_NEWS_CATEGORY = "Class News"
 
@@ -42,6 +44,9 @@ def _extract_youtube_id(url):
 @bp.route("/admin")
 @login_required
 def index():
+    # Make sure the default RSS feeds exist before showing the editor.
+    ensure_news_sources()
+
     # Class news is stored as announcements with a fixed category.
     class_news = (
         Announcement.query.filter_by(category=CLASS_NEWS_CATEGORY)
@@ -62,8 +67,8 @@ def index():
         memes=Meme.query.order_by(Meme.id.desc()).all(),
         ted_talks=TedTalk.query.order_by(TedTalk.id.desc()).all(),
         audits=AttendanceAudit.query.order_by(AttendanceAudit.created_at.desc()).limit(20).all(),
-        # Read-only list of the RSS feeds that power the global news page.
-        news_feeds=FEEDS,
+        # Editable list of the RSS feeds that power the global news page.
+        news_feeds=NewsSource.query.order_by(NewsSource.id).all(),
     )
 
 
@@ -399,4 +404,65 @@ def delete_join(item_id):
         flash("Request deleted.", "success")
     else:
         flash("Request not found.", "error")
+    return redirect(url_for("admin.index"))
+
+
+# ---------------------------------------------------------------------------
+# Global news RSS sources (add / edit / delete)
+# ---------------------------------------------------------------------------
+
+def _valid_feed_url(url):
+    """Accept only plain http(s) URLs for feeds and stories."""
+    return url.startswith("http://") or url.startswith("https://")
+
+
+@bp.route("/admin/news-source", methods=["POST"])
+@login_required
+def add_news_source():
+    label = request.form.get("label", "").strip()
+    url = request.form.get("url", "").strip()
+    if not label or not _valid_feed_url(url):
+        flash("A name and an http(s) RSS URL are required.", "error")
+        return redirect(url_for("admin.index"))
+    db.session.add(NewsSource(label=label[:100], url=url[:500], active=True))
+    db.session.commit()
+    clear_news_cache()
+    flash("News source added.", "success")
+    return redirect(url_for("admin.index"))
+
+
+@bp.route("/admin/news-source/<int:item_id>/edit", methods=["POST"])
+@login_required
+def edit_news_source(item_id):
+    item = db.session.get(NewsSource, item_id)
+    if not item:
+        flash("News source not found.", "error")
+        return redirect(url_for("admin.index"))
+
+    label = request.form.get("label", "").strip()
+    url = request.form.get("url", "").strip()
+    if not label or not _valid_feed_url(url):
+        flash("A name and an http(s) RSS URL are required.", "error")
+        return redirect(url_for("admin.index"))
+
+    item.label = label[:100]
+    item.url = url[:500]
+    item.active = request.form.get("active") == "on"
+    db.session.commit()
+    clear_news_cache()
+    flash("News source updated.", "success")
+    return redirect(url_for("admin.index"))
+
+
+@bp.route("/admin/news-source/<int:item_id>/delete", methods=["POST"])
+@login_required
+def delete_news_source(item_id):
+    item = db.session.get(NewsSource, item_id)
+    if item:
+        db.session.delete(item)
+        db.session.commit()
+        clear_news_cache()
+        flash("News source deleted.", "success")
+    else:
+        flash("News source not found.", "error")
     return redirect(url_for("admin.index"))

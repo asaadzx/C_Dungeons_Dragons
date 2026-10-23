@@ -207,6 +207,23 @@ class EventRequest(db.Model):
     event = db.relationship("Event")
 
 
+class NewsSource(db.Model):
+    """An RSS feed shown on the Global News page.
+
+    Staff can edit this list from the control panel. The rows are seeded
+    from the defaults in app/news/feeds.py the first time they are needed.
+    """
+
+    __tablename__ = "news_sources"
+
+    id = db.Column(db.Integer, primary_key=True)
+    label = db.Column(db.String(100), nullable=False)
+    url = db.Column(db.String(500), nullable=False)
+    # Disabled feeds stay in the panel but are not fetched.
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+
 class AttendanceAudit(db.Model):
     """Audit log for attendance changes."""
 

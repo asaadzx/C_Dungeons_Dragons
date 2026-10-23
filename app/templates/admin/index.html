@@ -328,23 +328,53 @@
 <section class="nes-container with-title is-rounded mt-2">
     <p class="title">Global News RSS Sources</p>
     <p class="page-subtitle">
-        These feeds supply the Global News section. To change them, edit
-        <code>app/news/feeds.py</code> and add or remove entries in the
-        <code>FEEDS</code> list, then redeploy.
+        These feeds supply the Global News section. Uncheck "Active" to hide a
+        feed without deleting it. Changes apply on the next news refresh.
     </p>
-    <table class="nes-table is-bordered">
-        <thead>
-            <tr><th>Source</th><th>RSS URL</th></tr>
-        </thead>
-        <tbody>
-            {% for label, url in news_feeds %}
-                <tr>
-                    <td>{{ label }}</td>
-                    <td><a href="{{ url|safe_url }}" target="_blank" rel="noopener">{{ url }}</a></td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+
+    <form method="POST" action="{{ url_for('admin.add_news_source') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="grid-2">
+            <div>
+                <label for="feed-label">Source name</label>
+                <input class="nes-input" id="feed-label" name="label" required
+                       placeholder="e.g. BBC World">
+            </div>
+            <div>
+                <label for="feed-url">RSS URL</label>
+                <input class="nes-input" id="feed-url" name="url" type="url" required
+                       placeholder="https://example.com/rss.xml">
+            </div>
+        </div>
+        <button class="nes-btn is-success mt-1" type="submit">Add source</button>
+    </form>
+
+    <h4 class="mt-2">Existing</h4>
+    {% if news_feeds %}
+        {% for source in news_feeds %}
+            <div class="admin-item">
+                <form method="POST" action="{{ url_for('admin.edit_news_source', item_id=source.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label>Source name</label>
+                    <input class="nes-input" name="label" value="{{ source.label }}" required>
+                    <label class="mt-1">RSS URL</label>
+                    <input class="nes-input" name="url" type="url" value="{{ source.url }}" required>
+                    <label class="mt-1">
+                        <input type="checkbox" name="active" {% if source.active %}checked{% endif %}>
+                        Active
+                    </label>
+                    <button class="nes-btn is-primary mt-1" type="submit">Save</button>
+                </form>
+                <form method="POST" action="{{ url_for('admin.delete_news_source', item_id=source.id) }}"
+                      onsubmit="return confirm('Delete this news source?');" class="mt-1">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="nes-btn is-error" type="submit">Delete</button>
+                </form>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>No news sources. Add one above.</p>
+    {% endif %}
 </section>
 
 <section class="nes-container with-title is-rounded mt-2">

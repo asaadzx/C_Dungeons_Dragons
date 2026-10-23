@@ -20,8 +20,9 @@ import feedparser
 # Cache the combined feed result for 15 minutes.
 CACHE_SECONDS = 15 * 60
 
-# Feeds chosen to be interesting for high-school students: technology,
-# science, space, and general world news. Each entry is (label, url).
+# Default feeds, seeded into the database the first time staff open the
+# control panel. Each entry is (label, url). Feeds chosen to be interesting
+# for high-school students: technology, science, space, and world news.
 FEEDS = [
     ("Hacker News", "https://hnrss.org/frontpage"),
     ("ScienceDaily", "https://www.sciencedaily.com/rss/top/science.xml"),
@@ -36,6 +37,37 @@ FETCH_TIMEOUT = 3
 
 # Simple in-process cache: {"items": [...], "fetched_at": timestamp}.
 _cache = {"items": [], "fetched_at": 0.0}
+
+
+def clear_cache():
+    """Drop the cached stories so edited feeds take effect immediately."""
+    _cache["items"] = []
+    _cache["fetched_at"] = 0.0
+
+
+def ensure_news_sources():
+    """Seed the database with the default feeds if it has none yet."""
+    # Imported here to avoid a circular import at module load time.
+    from ..extensions import db
+    from ..models import NewsSource
+
+    if NewsSource.query.count() == 0:
+        for label, url in FEEDS:
+            db.session.add(NewsSource(label=label, url=url, active=True))
+        db.session.commit()
+
+
+def get_feeds():
+    """Return the active feeds as a list of (label, url) tuples."""
+    ensure_news_sources()
+    from ..models import NewsSource
+
+    return [
+        (source.label, source.url)
+        for source in NewsSource.query.filter_by(active=True)
+        .order_by(NewsSource.id)
+        .all()
+    ]
 
 
 def _clean(text):
@@ -88,12 +120,18 @@ def get_global_news(force=False):
     if not force and _cache["items"] and (now - _cache["fetched_at"]) < CACHE_SECONDS:
         return _cache["items"]
 
+    feeds = get_feeds()
+    if not feeds:
+        _cache["items"] = []
+        _cache["fetched_at"] = now
+        return []
+
     # Fetch every feed in parallel so one slow feed does not stall the page.
     # Failures are skipped on purpose.
     readings = []
-    max_workers = min(len(FEEDS), 8)
+    max_workers = min(len(feeds), 8)
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        futures = [(label, pool.submit(_fetch_one, url)) for label, url in FEEDS]
+        futures = [(label, pool.submit(_fetch_one, url)) for label, url in feeds]
         for label, future in futures:
             try:
                 stories = future.result(timeout=FETCH_TIMEOUT + 1)
