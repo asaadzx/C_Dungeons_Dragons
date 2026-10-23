@@ -5,6 +5,16 @@
      Events popup on click.
      ===================================================================== -->
 
+<style>
+    .calendar-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .calendar-grid { min-width: 680px; }
+    .calendar-cell { min-height: 90px; }
+    @media (max-width: 720px) {
+        .calendar-grid { min-width: 580px; }
+        .calendar-cell { min-height: 64px; font-size: 9px; }
+        .calendar-day { font-size: 10px; }
+    }
+</style>
 {% block content %}
 
 <h2 class="page-title">&#127914; Community Events</h2>
@@ -20,7 +30,7 @@
             <select id="organizer_id" name="organizer_id" required>
                 <option value="" disabled selected hidden>Choose your name...</option>
                 {% for student in students %}
-                    <option value="{{ student['id'] }}">{{ student['name'] }}</option>
+                    <option value="{{ student.id }}">{{ student.name_en }}{% if student.name_ar %} — {{ student.name_ar }}{% endif %}</option>
                 {% endfor %}
             </select>
         </div>
@@ -96,7 +106,7 @@
             <button class="event-popup-close" type="button" data-close="ev-{{ ev.id }}">X</button>
             <h3 class="popup-title">{{ ev.title }}</h3>
             <div class="popup-by">by
-                <a href="{{ url_for('hub.student_profile', student_id=ev.organizer_id) }}">{{ ev.organizer_name }}</a>
+                <a href="{{ url_for('hub.student_profile', student_id=ev.organizer_id) }}">{{ ev.organizer.name_en if ev.organizer else ev.organizer_id }}</a>
             </div>
             {% if ev.event_date %}<div class="popup-row">&#128197; {{ ev.event_date }}</div>{% endif %}
             {% if ev.location %}<div class="popup-row">&#128205; {{ ev.location }}</div>{% endif %}
