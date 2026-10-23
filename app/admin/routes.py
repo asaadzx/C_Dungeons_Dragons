@@ -20,6 +20,7 @@ from ..models import (
     Student,
     TedTalk,
 )
+from ..news.feeds import FEEDS
 
 CLASS_NEWS_CATEGORY = "Class News"
 
@@ -61,6 +62,8 @@ def index():
         memes=Meme.query.order_by(Meme.id.desc()).all(),
         ted_talks=TedTalk.query.order_by(TedTalk.id.desc()).all(),
         audits=AttendanceAudit.query.order_by(AttendanceAudit.created_at.desc()).limit(20).all(),
+        # Read-only list of the RSS feeds that power the global news page.
+        news_feeds=FEEDS,
     )
 
 
