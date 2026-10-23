@@ -15,7 +15,7 @@ from sqlalchemy import text
 
 from .config import Config
 from .extensions import csrf, db, login_manager, migrate
-from .security import add_security_headers, safe_url
+from .security import add_security_headers, media_url, safe_url
 
 
 def create_app(config_object=Config):
@@ -58,6 +58,8 @@ def create_app(config_object=Config):
 
     # Jinja helper: {{ some_url|safe_url }} returns "" for unsafe schemes.
     app.jinja_env.filters["safe_url"] = safe_url
+    # Jinja helper: {{ image|media_url }} handles both external and static paths.
+    app.jinja_env.filters["media_url"] = media_url
     app.after_request(add_security_headers)
 
     # Lightweight health check used by Render and uptime monitors.

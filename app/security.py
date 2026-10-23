@@ -27,6 +27,25 @@ def safe_url(value):
     return value
 
 
+def media_url(value):
+    """Turn a stored image reference into a usable <img src>.
+
+    Values may be either a full external URL (e.g. a YouTube thumbnail on
+    img.youtube.com) or a filename relative to the static folder. External
+    http(s) URLs are returned unchanged; anything else is treated as a static
+    path. Unsafe schemes fall back to an empty string.
+    """
+    value = (value or "").strip()
+    if not value:
+        return ""
+    if value.startswith(("http://", "https://")):
+        return safe_url(value)
+    # Local static file: let Flask build the correct URL.
+    from flask import url_for
+
+    return url_for("static", filename=value)
+
+
 def add_security_headers(response):
     """Attach a few defensive HTTP headers to every response."""
     # Stop browsers from guessing content types (blocks some XSS tricks).

@@ -50,7 +50,7 @@ def _events_with_requests():
 
 @bp.route("/")
 def index():
-    """Home page: announcements plus a random TED talk and meme."""
+    """Home page: announcements plus a random video and meme."""
     announcements = Announcement.query.order_by(Announcement.created_at.desc()).all()
     return render_template(
         "index.html",

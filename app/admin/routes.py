@@ -3,6 +3,8 @@
 # Staff-only management pages. All routes require login.
 # ---------------------------------------------------------------------------
 
+import re
+
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
@@ -11,9 +13,17 @@ from ..extensions import db
 from ..models import Announcement, LhrGame, Meme, TedTalk
 
 
-def _require_staff():
-    if not current_user.is_authenticated:
-        return redirect(url_for("auth.login"))
+def _extract_youtube_id(url):
+    if not url:
+        return None
+    patterns = [
+        r"(?:v=|\/vi\/|youtu\.be\/|\/embed\/)([A-Za-z0-9_-]{11})",
+        r"^([A-Za-z0-9_-]{11})$",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
     return None
 
 
@@ -44,6 +54,19 @@ def add_announcement():
     return redirect(url_for("admin.index"))
 
 
+@bp.route("/admin/announcement/<int:item_id>/delete", methods=["POST"])
+@login_required
+def delete_announcement(item_id):
+    item = db.session.get(Announcement, item_id)
+    if item:
+        db.session.delete(item)
+        db.session.commit()
+        flash("Announcement deleted.", "success")
+    else:
+        flash("Announcement not found.", "error")
+    return redirect(url_for("admin.index"))
+
+
 @bp.route("/admin/lhr", methods=["POST"])
 @login_required
 def add_lhr():
@@ -63,6 +86,19 @@ def add_lhr():
     return redirect(url_for("admin.index"))
 
 
+@bp.route("/admin/lhr/<int:item_id>/delete", methods=["POST"])
+@login_required
+def delete_lhr(item_id):
+    item = db.session.get(LhrGame, item_id)
+    if item:
+        db.session.delete(item)
+        db.session.commit()
+        flash("LHR game deleted.", "success")
+    else:
+        flash("Game not found.", "error")
+    return redirect(url_for("admin.index"))
+
+
 @bp.route("/admin/meme", methods=["POST"])
 @login_required
 def add_meme():
@@ -77,6 +113,19 @@ def add_meme():
     return redirect(url_for("admin.index"))
 
 
+@bp.route("/admin/meme/<int:item_id>/delete", methods=["POST"])
+@login_required
+def delete_meme(item_id):
+    item = db.session.get(Meme, item_id)
+    if item:
+        db.session.delete(item)
+        db.session.commit()
+        flash("Meme deleted.", "success")
+    else:
+        flash("Meme not found.", "error")
+    return redirect(url_for("admin.index"))
+
+
 @bp.route("/admin/ted", methods=["POST"])
 @login_required
 def add_ted():
@@ -87,9 +136,25 @@ def add_ted():
     if not title or not url:
         flash("Title and URL are required.", "error")
         return redirect(url_for("admin.index"))
-    if not thumbnail:
+    video_id = _extract_youtube_id(url)
+    if video_id and not thumbnail:
+        thumbnail = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
+    elif not thumbnail:
         thumbnail = "images/ted-placeholder.png"
     db.session.add(TedTalk(title=title[:300], url=url[:500], thumbnail=thumbnail[:300], description=description))
     db.session.commit()
-    flash("TED talk added.", "success")
+    flash("Video for Knowledge added.", "success")
+    return redirect(url_for("admin.index"))
+
+
+@bp.route("/admin/ted/<int:item_id>/delete", methods=["POST"])
+@login_required
+def delete_ted(item_id):
+    item = db.session.get(TedTalk, item_id)
+    if item:
+        db.session.delete(item)
+        db.session.commit()
+        flash("Video for Knowledge deleted.", "success")
+    else:
+        flash("Video not found.", "error")
     return redirect(url_for("admin.index"))

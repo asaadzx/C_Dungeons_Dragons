@@ -7,7 +7,7 @@
 {% block content %}
 
 <h2 class="page-title">&#9881; Staff Control Panel</h2>
-<p class="page-subtitle">Manage announcements, LHR games, memes, and TED talks without touching the server.</p>
+<p class="page-subtitle">Manage announcements, LHR games, memes, and Videos for Knowledge without touching the server.</p>
 
 <div class="grid-2">
 
@@ -27,7 +27,16 @@
         <h4 class="mt-2">Existing</h4>
         {% if announcements %}
             {% for a in announcements %}
-                <div class="admin-item"><strong>{{ a.title }}</strong> <small>({{ a.category }})</small><br>{{ a.content }}</div>
+                <div class="admin-item">
+                    <div class="row-between">
+                        <div><strong>{{ a.title }}</strong> <small>({{ a.category }})</small></div>
+                        <form method="POST" action="{{ url_for('admin.delete_announcement', item_id=a.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="nes-btn is-error" type="submit">Delete</button>
+                        </form>
+                    </div>
+                    <div>{{ a.content }}</div>
+                </div>
             {% endfor %}
         {% else %}
             <p>No announcements.</p>
@@ -58,7 +67,13 @@
         <h4 class="mt-2">Existing</h4>
         {% if games %}
             {% for g in games %}
-                <div class="admin-item"><strong>{{ g.title }}</strong> <span class="tag is-{{ g.status|lower }}">{{ g.status }}</span></div>
+                <div class="admin-item row-between">
+                    <div><strong>{{ g.title }}</strong> <span class="tag is-{{ g.status|lower }}">{{ g.status }}</span></div>
+                    <form method="POST" action="{{ url_for('admin.delete_lhr', item_id=g.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="nes-btn is-error" type="submit">Delete</button>
+                    </form>
+                </div>
             {% endfor %}
         {% else %}
             <p>No games.</p>
@@ -79,35 +94,47 @@
         <h4 class="mt-2">Existing</h4>
         {% if memes %}
             {% for m in memes %}
-                <div class="admin-item">{{ m.caption or '(no caption)' }}</div>
+                <div class="admin-item row-between">
+                    <div>{{ m.caption or '(no caption)' }}</div>
+                    <form method="POST" action="{{ url_for('admin.delete_meme', item_id=m.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="nes-btn is-error" type="submit">Delete</button>
+                    </form>
+                </div>
             {% endfor %}
         {% else %}
             <p>No memes.</p>
         {% endif %}
     </section>
 
-    <!-- ===================== TED TALKS ===================== -->
+    <!-- ===================== VIDEOS FOR KNOWLEDGE ===================== -->
     <section class="nes-container with-title is-rounded">
-        <p class="title">New TED Talk</p>
+        <p class="title">New Video for Knowledge</p>
         <form method="POST" action="{{ url_for('admin.add_ted') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label for="ted-title">Title</label>
             <input class="nes-input" id="ted-title" name="title" required>
-            <label for="ted-url" class="mt-1">YouTube/TED URL</label>
-            <input class="nes-input" id="ted-url" name="url" required>
-            <label for="ted-thumb" class="mt-1">Thumbnail filename (optional)</label>
-            <input class="nes-input" id="ted-thumb" name="thumbnail" placeholder="images/ted-placeholder.png">
+            <label for="ted-url" class="mt-1">YouTube URL</label>
+            <input class="nes-input" id="ted-url" name="url" required
+                   placeholder="https://www.youtube.com/watch?v=...">
+            <p class="page-subtitle">The thumbnail is fetched automatically from YouTube.</p>
             <label for="ted-desc" class="mt-1">Description</label>
             <textarea class="nes-textarea" id="ted-desc" name="description"></textarea>
-            <button class="nes-btn is-error mt-1" type="submit">Add TED talk</button>
+            <button class="nes-btn is-error mt-1" type="submit">Add video</button>
         </form>
         <h4 class="mt-2">Existing</h4>
         {% if ted_talks %}
             {% for t in ted_talks %}
-                <div class="admin-item"><strong>{{ t.title }}</strong></div>
+                <div class="admin-item row-between">
+                    <div><strong>{{ t.title }}</strong></div>
+                    <form method="POST" action="{{ url_for('admin.delete_ted', item_id=t.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="nes-btn is-error" type="submit">Delete</button>
+                    </form>
+                </div>
             {% endfor %}
         {% else %}
-            <p>No TED talks.</p>
+            <p>No videos.</p>
         {% endif %}
     </section>
 

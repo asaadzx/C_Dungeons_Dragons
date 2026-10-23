@@ -3,7 +3,7 @@
      index.html  ->  route "/" (Official Bulletin & Culture Board)
 
      Sections:
-       1. KOSEN Spotlight  - a random TED talk + a random meme (from the DB)
+       1. KOSEN Spotlight  - a random video + a random meme (from the DB)
        2. Official Bulletin - every announcement, newest first
        3. Campus Rules & Guidelines - static reference list
 
@@ -16,28 +16,27 @@
 <h2 class="page-title">&#9876; KOSEN Spotlight &#9876;</h2>
 <p class="page-subtitle">Fresh inspiration &amp; memes, picked for you each visit</p>
 
-<!-- ==================== SPOTLIGHT: TED TALK + MEME ==================== -->
+<!-- ==================== SPOTLIGHT: VIDEO + MEME ==================== -->
 <div class="spotlight-grid">
 
-    <!-- ---- Random TED talk ---- -->
+    <!-- ---- Random video ---- -->
     <section class="nes-container with-title is-dark">
-        <p class="title">TED TALK</p>
+        <p class="title">VIDEO FOR KNOWLEDGE</p>
         {% if ted_talk %}
-            <!-- Clicking the thumbnail opens the talk on ted.com (needs wifi).
-                 The image itself is stored locally, so it always displays. -->
+            <!-- Clicking the thumbnail opens the video (needs wifi). -->
             <a href="{{ ted_talk['url'] }}" target="_blank" rel="noopener">
                 <img class="spotlight-img"
-                     src="{{ url_for('static', filename=ted_talk['thumbnail']) }}"
+                     src="{{ ted_talk['thumbnail']|media_url }}"
                      alt="{{ ted_talk['title'] }}">
             </a>
             <h3 class="spotlight-meta">{{ ted_talk['title'] }}</h3>
             <p>{{ ted_talk['description'] }}</p>
             <a class="nes-btn is-primary" href="{{ ted_talk['url'] }}"
                target="_blank" rel="noopener">
-                <i class="nes-icon star is-small"></i> Watch on TED
+                <i class="nes-icon star is-small"></i> Watch Video
             </a>
         {% else %}
-            <p>No TED talks in the database yet.</p>
+            <p>No videos in the database yet.</p>
         {% endif %}
     </section>
 
@@ -46,7 +45,7 @@
         <p class="title">MEME OF THE DAY</p>
         {% if meme %}
             <img class="spotlight-img"
-                 src="{{ url_for('static', filename=meme['image_url']) }}"
+                 src="{{ meme['image_url']|media_url }}"
                  alt="meme">
             <p class="meme-caption">{{ meme['caption'] }}</p>
         {% else %}
