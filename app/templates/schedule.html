@@ -69,31 +69,35 @@
             <a class="nes-btn" href="{{ url_for('hub.schedule', year=next_month.year, month=next_month.month) }}">Next &rarr;</a>
         </div>
 
-        <table class="month-calendar">
-            <thead>
-                <tr>
-                    <th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for week in weeks %}
+        <!-- On phones this box keeps a fixed height and scrolls vertically
+             on its own, so the month grid never spills outside the frame. -->
+        <div class="calendar-scroll">
+            <table class="month-calendar">
+                <thead>
                     <tr>
-                        {% for day in week %}
-                            <td class="calendar-cell {% if is_current_month and day == today %}is-today{% endif %}">
-                                {% if day != 0 %}
-                                    <div class="day-number">{{ day }}</div>
-                                    <div class="cell-events">
-                                        {% for ev in events_by_day.get(day, []) %}
-                                            <button class="event-chip-btn" type="button" data-ev="ev-{{ ev.id }}">{{ ev.title }}</button>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </td>
-                        {% endfor %}
+                        <th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th>
                     </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {% for week in weeks %}
+                        <tr>
+                            {% for day in week %}
+                                <td class="calendar-cell {% if is_current_month and day == today %}is-today{% endif %}">
+                                    {% if day != 0 %}
+                                        <div class="day-number">{{ day }}</div>
+                                        <div class="cell-events">
+                                            {% for ev in events_by_day.get(day, []) %}
+                                                <button class="event-chip-btn" type="button" data-ev="ev-{{ ev.id }}">{{ ev.title }}</button>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </section>
 </div>
 
