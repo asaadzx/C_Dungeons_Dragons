@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+<!-- =====================================================================
+     news.html  ->  route "/news"
+     Two sections:
+       1. Class News   - announcements with category "Class News" (staff)
+       2. Global News  - interesting stories pulled from public RSS feeds
+     ===================================================================== -->
+
+{% block content %}
+
+<h2 class="page-title">&#128240; News</h2>
+<p class="page-subtitle">What's happening in class, and what's happening in the world.</p>
+
+<!-- ===================== CLASS NEWS ===================== -->
+<section class="nes-container with-title is-rounded">
+    <p class="title">&#127979; Class News</p>
+    {% if class_news %}
+        <div class="stack">
+            {% for item in class_news %}
+                <article class="news-item">
+                    <h3>{{ item.title }}</h3>
+                    <p class="news-meta">{{ item.created_at.strftime('%d %b %Y') }}</p>
+                    <p>{{ item.content }}</p>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No class news yet. Staff can add it from the Manage page
+           (choose the "Class News" category).</p>
+    {% endif %}
+</section>
+
+<!-- ===================== GLOBAL NEWS ===================== -->
+<section class="nes-container with-title is-rounded mt-2">
+    <div class="row-between">
+        <p class="title">&#127758; Global News</p>
+        <a class="nes-btn" href="{{ url_for('news.index', refresh='1') }}">Refresh</a>
+    </div>
+
+    {% if global_news %}
+        <!-- Only the first 5 stories are visible. "Load more" reveals the
+             next 5 at a time. Each card shows only the title until clicked. -->
+        <div class="cards-grid" id="global-news-list">
+            {% for story in global_news %}
+                <details class="nes-container is-rounded news-card" {% if loop.index <= 5 %}{% else %}data-hidden="1"{% endif %}>
+                    <summary class="news-summary">
+                        <span class="tag is-upcoming">{{ story.source }}</span>
+                        <span class="news-title">{{ story.title }}</span>
+                    </summary>
+                    {% if story.summary %}
+                        <p>{{ story.summary }}</p>
+                    {% endif %}
+                    {% if story.link %}
+                        <a class="nes-btn is-primary" href="{{ story.link|safe_url }}"
+                           target="_blank" rel="noopener">Read more</a>
+                    {% endif %}
+                </details>
+            {% endfor %}
+        </div>
+        {% if global_news|length > 5 %}
+            <button class="nes-btn is-primary mt-1" type="button" id="load-more-news">
+                Load more ({{ global_news|length - 5 }} left)
+            </button>
+        {% endif %}
+    {% else %}
+        <p>Could not load global news right now. Check the connection and try
+           the Refresh button.</p>
+    {% endif %}
+</section>
+
+<script>
+// Reveal hidden global news cards 5 at a time.
+document.addEventListener('DOMContentLoaded', function () {
+  var BATCH = 5;
+  var btn = document.getElementById('load-more-news');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    var hidden = document.querySelectorAll('#global-news-list [data-hidden="1"]');
+    var shown = 0;
+    for (var i = 0; i < hidden.length && shown < BATCH; i++) {
+      hidden[i].removeAttribute('data-hidden');
+      shown++;
+    }
+    var left = document.querySelectorAll('#global-news-list [data-hidden="1"]').length;
+    if (left === 0) {
+      btn.parentNode.removeChild(btn);
+    } else {
+      btn.textContent = 'Load more (' + left + ' left)';
+    }
+  });
+});
+</script>
+
+{% endblock %}

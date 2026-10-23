@@ -19,7 +19,12 @@
             <label for="ann-title">Title</label>
             <input class="nes-input" id="ann-title" name="title" required>
             <label for="ann-cat" class="mt-1">Category</label>
-            <input class="nes-input" id="ann-cat" name="category" value="News">
+            <div class="nes-select">
+                <select id="ann-cat" name="category">
+                    <option value="News">News (bulletin)</option>
+                    <option value="Class News">Class News (News page)</option>
+                </select>
+            </div>
             <label for="ann-body" class="mt-1">Content</label>
             <textarea class="nes-textarea" id="ann-body" name="content" required></textarea>
             <button class="nes-btn is-primary mt-1" type="submit">Add announcement</button>
@@ -33,8 +38,11 @@
                         <div>
                             <form method="POST" action="{{ url_for('admin.edit_announcement', item_id=a.id) }}" style="display:inline">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <input type="hidden" name="category" value="{{ a.category }}">
                                 <input class="nes-input" name="title" value="{{ a.title }}" style="width:200px">
+                                <select name="category">
+                                    <option value="News" {% if a.category == 'News' %}selected{% endif %}>News</option>
+                                    <option value="Class News" {% if a.category == 'Class News' %}selected{% endif %}>Class News</option>
+                                </select>
                                 <textarea class="nes-textarea" name="content">{{ a.content }}</textarea>
                                 <button class="nes-btn is-primary" type="submit">Save</button>
                             </form>
@@ -184,6 +192,137 @@
     </section>
 
 </div>
+
+<!-- ===================== CLASS NEWS ===================== -->
+<section class="nes-container with-title is-rounded mt-2">
+    <p class="title">Class News</p>
+    <p class="page-subtitle">These posts appear in the "Class News" section of the News page.</p>
+    <form method="POST" action="{{ url_for('admin.add_class_news') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="cn-title">Title</label>
+        <input class="nes-input" id="cn-title" name="title" required>
+        <label for="cn-body" class="mt-1">Content</label>
+        <textarea class="nes-textarea" id="cn-body" name="content" required></textarea>
+        <button class="nes-btn is-primary mt-1" type="submit">Add class news</button>
+    </form>
+    <h4 class="mt-2">Existing</h4>
+    {% if class_news %}
+        {% for a in class_news %}
+            <div class="admin-item">
+                <div class="row-between">
+                    <div><strong>{{ a.title }}</strong></div>
+                    <div>
+                        <form method="POST" action="{{ url_for('admin.edit_announcement', item_id=a.id) }}" style="display:inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="category" value="{{ class_news_category }}">
+                            <input class="nes-input" name="title" value="{{ a.title }}" style="width:200px">
+                            <textarea class="nes-textarea" name="content">{{ a.content }}</textarea>
+                            <button class="nes-btn is-primary" type="submit">Save</button>
+                        </form>
+                        <form method="POST" action="{{ url_for('admin.delete_announcement', item_id=a.id) }}" style="display:inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="nes-btn is-error" type="submit">Delete</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>No class news yet.</p>
+    {% endif %}
+</section>
+
+<!-- ===================== EVENTS ===================== -->
+<section class="nes-container with-title is-rounded mt-2">
+    <p class="title">Events</p>
+    <p class="page-subtitle">Edit or delete community events posted by students.</p>
+    {% if events %}
+        {% for ev in events %}
+            <div class="admin-item">
+                <form method="POST" action="{{ url_for('admin.edit_event', item_id=ev.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label>Title</label>
+                    <input class="nes-input" name="title" value="{{ ev.title }}" required>
+                    <label class="mt-1">Organizer</label>
+                    <div class="nes-select">
+                        <select name="organizer_id">
+                            {% for s in students %}
+                                <option value="{{ s.id }}" {% if s.id == ev.organizer_id %}selected{% endif %}>
+                                    {{ s.name_en }}{% if s.name_ar %} — {{ s.name_ar }}{% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="grid-2">
+                        <div>
+                            <label class="mt-1">Real date</label>
+                            <input class="nes-input" type="date" name="event_date_actual"
+                                   value="{{ ev.event_date_actual.isoformat() if ev.event_date_actual else '' }}">
+                        </div>
+                        <div>
+                            <label class="mt-1">Display text</label>
+                            <input class="nes-input" name="event_date" value="{{ ev.event_date }}"
+                                   placeholder="Fri 21 Nov">
+                        </div>
+                    </div>
+                    <label class="mt-1">Location</label>
+                    <input class="nes-input" name="location" value="{{ ev.location }}">
+                    <label class="mt-1">Link</label>
+                    <input class="nes-input" name="link" value="{{ ev.link }}">
+                    <label class="mt-1">Description</label>
+                    <textarea class="nes-textarea" name="description">{{ ev.description }}</textarea>
+                    <button class="nes-btn is-primary mt-1" type="submit">Save</button>
+                </form>
+                <form method="POST" action="{{ url_for('admin.delete_event', item_id=ev.id) }}"
+                      onsubmit="return confirm('Delete this event and its join requests?');" class="mt-1">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="nes-btn is-error" type="submit">Delete event</button>
+                </form>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>No events yet.</p>
+    {% endif %}
+</section>
+
+<!-- ===================== JOIN REQUESTS ===================== -->
+<section class="nes-container with-title is-rounded mt-2">
+    <p class="title">Event Join Requests</p>
+    <p class="page-subtitle">Approve or decline students asking to join an event.</p>
+    {% if join_requests %}
+        <table class="nes-table is-bordered">
+            <thead>
+                <tr><th>Event</th><th>Name</th><th>Message</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for r in join_requests %}
+                    <tr>
+                        <td>{{ r.event.title if r.event else '(deleted)' }}</td>
+                        <td>{{ r.requester_name }}</td>
+                        <td>{{ r.message }}</td>
+                        <td><span class="tag">{{ r.status }}</span></td>
+                        <td>
+                            <form method="POST" action="{{ url_for('admin.set_join_status', item_id=r.id, status='approved') }}" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="nes-btn is-success" type="submit">Approve</button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin.set_join_status', item_id=r.id, status='declined') }}" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="nes-btn is-warning" type="submit">Decline</button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin.delete_join', item_id=r.id) }}" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="nes-btn is-error" type="submit">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No join requests yet.</p>
+    {% endif %}
+</section>
 
 <section class="nes-container with-title is-rounded mt-2">
     <p class="title">Attendance Audit Log (recent)</p>

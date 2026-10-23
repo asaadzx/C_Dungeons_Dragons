@@ -10,7 +10,18 @@ from flask_login import current_user, login_required
 
 from . import bp
 from ..extensions import db
-from ..models import Announcement, AttendanceAudit, LhrGame, Meme, TedTalk
+from ..models import (
+    Announcement,
+    AttendanceAudit,
+    Event,
+    EventRequest,
+    LhrGame,
+    Meme,
+    Student,
+    TedTalk,
+)
+
+CLASS_NEWS_CATEGORY = "Class News"
 
 
 def _extract_youtube_id(url):
@@ -30,9 +41,22 @@ def _extract_youtube_id(url):
 @bp.route("/admin")
 @login_required
 def index():
+    # Class news is stored as announcements with a fixed category.
+    class_news = (
+        Announcement.query.filter_by(category=CLASS_NEWS_CATEGORY)
+        .order_by(Announcement.created_at.desc())
+        .all()
+    )
+    events = Event.query.order_by(Event.id.desc()).all()
+    join_requests = EventRequest.query.order_by(EventRequest.id.desc()).all()
     return render_template(
         "admin/index.html",
         announcements=Announcement.query.order_by(Announcement.created_at.desc()).all(),
+        class_news=class_news,
+        class_news_category=CLASS_NEWS_CATEGORY,
+        events=events,
+        students=Student.query.filter_by(active=True).order_by(Student.name_en).all(),
+        join_requests=join_requests,
         games=LhrGame.query.order_by(LhrGame.id).all(),
         memes=Meme.query.order_by(Meme.id.desc()).all(),
         ted_talks=TedTalk.query.order_by(TedTalk.id.desc()).all(),
@@ -254,4 +278,122 @@ def delete_ted(item_id):
         flash("Video for Knowledge deleted.", "success")
     else:
         flash("Video not found.", "error")
+    return redirect(url_for("admin.index"))
+
+
+# ---------------------------------------------------------------------------
+# Class News
+# Class news is simply an announcement in the "Class News" category. These
+# routes make it possible to manage that section from the staff panel.
+# ---------------------------------------------------------------------------
+
+@bp.route("/admin/class-news", methods=["POST"])
+@login_required
+def add_class_news():
+    title = request.form.get("title", "").strip()
+    content = request.form.get("content", "").strip()
+    if not title or not content:
+        flash("Title and content are required.", "error")
+        return redirect(url_for("admin.index"))
+    db.session.add(
+        Announcement(
+            title=title[:200], content=content, category=CLASS_NEWS_CATEGORY
+        )
+    )
+    db.session.commit()
+    flash("Class news added.", "success")
+    return redirect(url_for("admin.index"))
+
+
+# ---------------------------------------------------------------------------
+# Events
+# ---------------------------------------------------------------------------
+
+def _parse_date(value):
+    """Parse an ISO date string, returning None when invalid or empty."""
+    from datetime import date
+
+    value = (value or "").strip()
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+@bp.route("/admin/event/<int:item_id>/edit", methods=["POST"])
+@login_required
+def edit_event(item_id):
+    item = db.session.get(Event, item_id)
+    if not item:
+        flash("Event not found.", "error")
+        return redirect(url_for("admin.index"))
+
+    title = request.form.get("title", "").strip()
+    if not title:
+        flash("Event title is required.", "error")
+        return redirect(url_for("admin.index"))
+
+    # Only accept a real student as organizer.
+    organizer_id = request.form.get("organizer_id", "").strip()
+    if organizer_id.isdigit() and db.session.get(Student, int(organizer_id)):
+        item.organizer_id = int(organizer_id)
+
+    item.title = title[:200]
+    item.link = request.form.get("link", "").strip()[:500]
+    item.description = request.form.get("description", "").strip()
+    item.location = request.form.get("location", "").strip()[:200]
+    item.event_date_actual = _parse_date(request.form.get("event_date_actual"))
+    item.event_date = request.form.get("event_date", "").strip()[:100]
+    db.session.commit()
+    flash("Event updated.", "success")
+    return redirect(url_for("admin.index"))
+
+
+@bp.route("/admin/event/<int:item_id>/delete", methods=["POST"])
+@login_required
+def delete_event(item_id):
+    item = db.session.get(Event, item_id)
+    if item:
+        # Remove join requests first so the foreign key stays valid.
+        EventRequest.query.filter_by(event_id=item_id).delete()
+        db.session.delete(item)
+        db.session.commit()
+        flash("Event deleted.", "success")
+    else:
+        flash("Event not found.", "error")
+    return redirect(url_for("admin.index"))
+
+
+# ---------------------------------------------------------------------------
+# Event join requests (approve / decline / delete)
+# ---------------------------------------------------------------------------
+
+@bp.route("/admin/join/<int:item_id>/<status>", methods=["POST"])
+@login_required
+def set_join_status(item_id, status):
+    item = db.session.get(EventRequest, item_id)
+    if not item:
+        flash("Request not found.", "error")
+        return redirect(url_for("admin.index"))
+    if status not in {"pending", "approved", "declined"}:
+        flash("Unknown status.", "error")
+        return redirect(url_for("admin.index"))
+    item.status = status
+    db.session.commit()
+    flash(f"Request marked {status}.", "success")
+    return redirect(url_for("admin.index"))
+
+
+@bp.route("/admin/join/<int:item_id>/delete", methods=["POST"])
+@login_required
+def delete_join(item_id):
+    item = db.session.get(EventRequest, item_id)
+    if item:
+        db.session.delete(item)
+        db.session.commit()
+        flash("Request deleted.", "success")
+    else:
+        flash("Request not found.", "error")
     return redirect(url_for("admin.index"))

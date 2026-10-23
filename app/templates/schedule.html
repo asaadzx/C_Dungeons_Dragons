@@ -1,20 +1,10 @@
 {% extends 'base.html' %}
 <!-- =====================================================================
      schedule.html  ->  route "/schedule" (Community Events Calendar)
-     Month-aware calendar showing current month ({{ current_month }})
+     Month-aware calendar: ?year=YYYY&month=M chooses the visible month.
      Events popup on click.
      ===================================================================== -->
 
-<style>
-    .calendar-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .calendar-grid { min-width: 680px; }
-    .calendar-cell { min-height: 90px; }
-    @media (max-width: 720px) {
-        .calendar-grid { min-width: 580px; }
-        .calendar-cell { min-height: 64px; font-size: 9px; }
-        .calendar-day { font-size: 10px; }
-    }
-</style>
 {% block content %}
 
 <h2 class="page-title">&#127914; Community Events</h2>
@@ -71,6 +61,14 @@
 <!-- ========================= MONTH CALENDAR ========================= -->
 <div class="month-calendar-wrap">
     <section class="nes-container is-rounded">
+        <!-- Prev / current / next month navigation. Each link reloads the
+             calendar for that month using ?year=YYYY&month=M. -->
+        <div class="calendar-nav">
+            <a class="nes-btn" href="{{ url_for('hub.schedule', year=prev_month.year, month=prev_month.month) }}">&larr; Prev</a>
+            <p class="calendar-month-label">{{ current_month }}</p>
+            <a class="nes-btn" href="{{ url_for('hub.schedule', year=next_month.year, month=next_month.month) }}">Next &rarr;</a>
+        </div>
+
         <table class="month-calendar">
             <thead>
                 <tr>
@@ -81,7 +79,7 @@
                 {% for week in weeks %}
                     <tr>
                         {% for day in week %}
-                            <td class="calendar-cell {% if day == today %}is-today{% endif %}">
+                            <td class="calendar-cell {% if is_current_month and day == today %}is-today{% endif %}">
                                 {% if day != 0 %}
                                     <div class="day-number">{{ day }}</div>
                                     <div class="cell-events">

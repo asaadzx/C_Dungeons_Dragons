@@ -93,37 +93,63 @@ def student_profile(student_id):
     return render_template("profile.html", student=student, events=events)
 
 
+def _shift_month(year, month, delta):
+    """Return (year, month) moved by delta months, wrapping across years."""
+    index = (year * 12 + (month - 1)) + delta
+    return index // 12, index % 12 + 1
+
+
 @bp.route("/schedule")
 def schedule():
-    """Events calendar for the current month.
+    """Events calendar for a chosen month (defaults to the current month).
 
-    Prefer the real calendar date when available; fall back to parsing the
-    free-text event_date for older events.
+    Query params ?year=YYYY&month=M select the visible month. Events are
+    placed using their real calendar date; older events that only have free
+    text are best-effort matched by day number.
     """
     events, requests_by_event = _events_with_requests()
     students = Student.query.filter_by(active=True).order_by(Student.name_en).all()
 
     now = datetime.now()
+
+    # Parse the requested month, falling back to the current month.
+    try:
+        year = int(request.args.get("year", now.year))
+        month = int(request.args.get("month", now.month))
+        if not 1 <= month <= 12:
+            raise ValueError
+    except (TypeError, ValueError):
+        year, month = now.year, now.month
+
+    view_year, view_month = year, month
+    prev_year, prev_month = _shift_month(view_year, view_month, -1)
+    next_year, next_month = _shift_month(view_year, view_month, 1)
+
     cal = calendar.Calendar(firstweekday=calendar.SUNDAY)
-    weeks = cal.monthdayscalendar(now.year, now.month)
+    weeks = cal.monthdayscalendar(view_year, view_month)
 
     # Group events by day number so the calendar grid can place them.
     events_by_day = {}
     for ev in events:
         day = None
-        if getattr(ev, "event_date_actual", None) and ev.event_date_actual.month == now.month and ev.event_date_actual.year == now.year:
-            day = ev.event_date_actual.day
-        if day is None:
-            matches = re.findall(r"\b(\d{1,2})\b", ev.event_date or "")
-            if matches:
-                try:
-                    candidate = int(matches[-1])
-                except ValueError:
-                    candidate = None
-                if candidate and 1 <= candidate <= 31:
-                    day = candidate
+        actual = getattr(ev, "event_date_actual", None)
+        if actual and actual.month == view_month and actual.year == view_year:
+            day = actual.day
+        elif actual is None:
+            # Legacy free-text events: only guess for the current month.
+            if view_year == now.year and view_month == now.month:
+                matches = re.findall(r"\b(\d{1,2})\b", ev.event_date or "")
+                if matches:
+                    try:
+                        candidate = int(matches[-1])
+                    except ValueError:
+                        candidate = None
+                    if candidate and 1 <= candidate <= 31:
+                        day = candidate
         if day:
             events_by_day.setdefault(day, []).append(ev)
+
+    is_current_month = view_year == now.year and view_month == now.month
 
     return render_template(
         "schedule.html",
@@ -131,9 +157,12 @@ def schedule():
         requests_by_event=requests_by_event,
         students=students,
         weeks=weeks,
-        current_month=now.strftime("%B %Y"),
+        current_month=datetime(view_year, view_month, 1).strftime("%B %Y"),
         today=now.day,
+        is_current_month=is_current_month,
         events_by_day=events_by_day,
+        prev_month=datetime(prev_year, prev_month, 1),
+        next_month=datetime(next_year, next_month, 1),
     )
 
 

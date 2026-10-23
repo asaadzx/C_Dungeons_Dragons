@@ -198,6 +198,8 @@ class EventRequest(db.Model):
     event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
     requester_name = db.Column(db.String(200), nullable=False)
     message = db.Column(db.Text, nullable=False, default="")
+    # Staff can approve or decline a request: pending / approved / declined.
+    status = db.Column(db.String(20), nullable=False, default="pending")
     # Reserved for a future student login system; NULL for now.
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)

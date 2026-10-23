@@ -46,12 +46,18 @@ def create_app(config_object=Config):
     from .auth import bp as auth_bp
     from .cli import register_cli
     from .hub import bp as hub_bp
+    from .i18n import register_i18n
+    from .news import bp as news_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(hub_bp)
     app.register_blueprint(attendance_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(news_bp)
     register_cli(app)
+
+    # Language switching + t()/dir helpers for every template.
+    register_i18n(app)
 
     # Importing models registers every table with SQLAlchemy.
     from . import models  # noqa: F401
