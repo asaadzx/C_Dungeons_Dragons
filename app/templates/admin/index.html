@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+<!-- =====================================================================
+     admin/index.html  ->  route "/admin" (Staff control panel)
+     Add announcements, LHR games, memes, and TED talks from the web.
+     ===================================================================== -->
+
+{% block content %}
+
+<h2 class="page-title">&#9881; Staff Control Panel</h2>
+<p class="page-subtitle">Manage announcements, LHR games, memes, and TED talks without touching the server.</p>
+
+<div class="grid-2">
+
+    <!-- ===================== ANNOUNCEMENTS ===================== -->
+    <section class="nes-container with-title is-rounded">
+        <p class="title">New Announcement</p>
+        <form method="POST" action="{{ url_for('admin.add_announcement') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="ann-title">Title</label>
+            <input class="nes-input" id="ann-title" name="title" required>
+            <label for="ann-cat" class="mt-1">Category</label>
+            <input class="nes-input" id="ann-cat" name="category" value="News">
+            <label for="ann-body" class="mt-1">Content</label>
+            <textarea class="nes-textarea" id="ann-body" name="content" required></textarea>
+            <button class="nes-btn is-primary mt-1" type="submit">Add announcement</button>
+        </form>
+        <h4 class="mt-2">Existing</h4>
+        {% if announcements %}
+            {% for a in announcements %}
+                <div class="admin-item"><strong>{{ a.title }}</strong> <small>({{ a.category }})</small><br>{{ a.content }}</div>
+            {% endfor %}
+        {% else %}
+            <p>No announcements.</p>
+        {% endif %}
+    </section>
+
+    <!-- ===================== LHR GAMES ===================== -->
+    <section class="nes-container with-title is-rounded">
+        <p class="title">New LHR Game</p>
+        <form method="POST" action="{{ url_for('admin.add_lhr') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="game-title">Title</label>
+            <input class="nes-input" id="game-title" name="title" required>
+            <label for="game-rules" class="mt-1">Rules</label>
+            <textarea class="nes-textarea" id="game-rules" name="rules" required></textarea>
+            <label for="game-max" class="mt-1">Max players</label>
+            <input class="nes-input" id="game-max" name="max_players" type="number" value="8">
+            <label for="game-status" class="mt-1">Status</label>
+            <div class="nes-select">
+                <select id="game-status" name="status">
+                    <option value="Upcoming">Upcoming</option>
+                    <option value="Active">Active</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+            <button class="nes-btn is-success mt-1" type="submit">Add game</button>
+        </form>
+        <h4 class="mt-2">Existing</h4>
+        {% if games %}
+            {% for g in games %}
+                <div class="admin-item"><strong>{{ g.title }}</strong> <span class="tag is-{{ g.status|lower }}">{{ g.status }}</span></div>
+            {% endfor %}
+        {% else %}
+            <p>No games.</p>
+        {% endif %}
+    </section>
+
+    <!-- ===================== MEMES ===================== -->
+    <section class="nes-container with-title is-rounded">
+        <p class="title">New Meme</p>
+        <form method="POST" action="{{ url_for('admin.add_meme') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="meme-url">Image URL or filename (e.g. images/meme.png)</label>
+            <input class="nes-input" id="meme-url" name="image_url" required>
+            <label for="meme-cap" class="mt-1">Caption</label>
+            <input class="nes-input" id="meme-cap" name="caption">
+            <button class="nes-btn is-warning mt-1" type="submit">Add meme</button>
+        </form>
+        <h4 class="mt-2">Existing</h4>
+        {% if memes %}
+            {% for m in memes %}
+                <div class="admin-item">{{ m.caption or '(no caption)' }}</div>
+            {% endfor %}
+        {% else %}
+            <p>No memes.</p>
+        {% endif %}
+    </section>
+
+    <!-- ===================== TED TALKS ===================== -->
+    <section class="nes-container with-title is-rounded">
+        <p class="title">New TED Talk</p>
+        <form method="POST" action="{{ url_for('admin.add_ted') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="ted-title">Title</label>
+            <input class="nes-input" id="ted-title" name="title" required>
+            <label for="ted-url" class="mt-1">YouTube/TED URL</label>
+            <input class="nes-input" id="ted-url" name="url" required>
+            <label for="ted-thumb" class="mt-1">Thumbnail filename (optional)</label>
+            <input class="nes-input" id="ted-thumb" name="thumbnail" placeholder="images/ted-placeholder.png">
+            <label for="ted-desc" class="mt-1">Description</label>
+            <textarea class="nes-textarea" id="ted-desc" name="description"></textarea>
+            <button class="nes-btn is-error mt-1" type="submit">Add TED talk</button>
+        </form>
+        <h4 class="mt-2">Existing</h4>
+        {% if ted_talks %}
+            {% for t in ted_talks %}
+                <div class="admin-item"><strong>{{ t.title }}</strong></div>
+            {% endfor %}
+        {% else %}
+            <p>No TED talks.</p>
+        {% endif %}
+    </section>
+
+</div>
+
+<p class="mt-2"><a href="{{ url_for('hub.index') }}">&larr; Back to bulletin</a></p>
+
+{% endblock %}
