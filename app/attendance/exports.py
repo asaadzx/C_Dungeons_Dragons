@@ -14,7 +14,6 @@ from pathlib import Path
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
-from openpyxl.utils import get_column_letter
 from PIL import Image, ImageDraw, ImageFont
 
 from .services import get_session

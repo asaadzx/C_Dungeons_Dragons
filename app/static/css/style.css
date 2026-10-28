@@ -942,20 +942,25 @@ table {
         text-shadow: none;
     }
 
-    body * {
-        visibility: hidden;
+    .site-header,
+    .site-footer,
+    main > *:not(.attendance-print) {
+        display: none !important;
     }
 
-    .attendance-print,
-    .attendance-print * {
-        visibility: visible;
+    main.container {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 0;
     }
 
     .attendance-print {
         display: block !important;
-        position: absolute;
-        inset: 0;
-        width: 100%;
+    }
+
+    .attendance-poster {
+        padding: 0;
     }
 
     .ap-row-late,
