@@ -1,11 +1,16 @@
 # ---------------------------------------------------------------------------
 # app/attendance/exports.py
-# Server-side export builders for a single day's attendance:
-#   * build_excel(day)  -> .xlsx bytes (openpyxl)
-#   * build_png(day)    -> .png bytes (Pillow)
+# Builds the downloadable attendance artifacts for one day:
+#   * build_excel(day) -> .xlsx bytes (openpyxl)
+#   * build_png(day)   -> .png bytes (Pillow)
 #
-# Both reuse day_records() so the data grouping lives in one place and the
-# export format never drifts from the CSV.
+# Both builders start from day_records(), so grouping and sorting live in one
+# place. The CSV export deliberately does NOT use this module: it has a stable
+# machine-readable schema because weekly-upload validation depends on it.
+#
+# The visual design follows the reference class-c1-attendance project: a white
+# background, heavy black outlines, green/amber/yellow status blocks, and
+# English + Arabic text together.
 # ---------------------------------------------------------------------------
 
 import io
@@ -18,10 +23,13 @@ from PIL import Image, ImageDraw, ImageFont
 
 from .services import get_session
 
+# Fonts are committed with the app so production does not depend on fonts being
+# installed on the host. _load_font() still has OS fallbacks for local checkouts.
 FONT_DIR = Path(__file__).resolve().parent.parent / "static" / "fonts"
 LATIN_FONT = FONT_DIR / "DejaVuSans-Bold.ttf"
 ARABIC_FONT = FONT_DIR / "NotoSansArabic-Bold.ttf"
 
+# Pillow accepts CSS-style colors, including the leading "#".
 POSTER = {
     "yellow": "#FFE600",
     "amber": "#FDE68A",
@@ -30,6 +38,8 @@ POSTER = {
     "footer": "#333333",
 }
 
+# openpyxl expects hex colors WITHOUT the leading "#". Keep this palette
+# separate from POSTER so each drawing library gets the format it expects.
 REFERENCE = {
     "green": "DCFCE7",
     "amber": "FDE68A",
@@ -41,15 +51,26 @@ REFERENCE = {
 
 
 def group_records(records):
-    """Group attendance records by status, sorted by English name."""
+    """Return {status: [records]} with each list sorted by English name.
+
+    Late stays in its own bucket instead of being merged into present because
+    the poster must show late arrivals separately. Weekly percentages are
+    calculated elsewhere and still count late as attended.
+    """
     grouped = {"present": [], "late": [], "absent": []}
     for record in sorted(records, key=lambda r: r.student.name_en.lower()):
+        # setdefault keeps this tolerant of any future status added to the
+        # model without silently dropping that record from the export.
         grouped.setdefault(record.status, []).append(record)
     return grouped
 
 
 def day_records(day):
-    """Return a day's records grouped by status."""
+    """Return a saved day's records grouped by status.
+
+    An unsaved day returns the same three empty buckets, so Excel, PNG, and
+    template code never need a separate "no session" branch.
+    """
     session = get_session(day)
     if session is None:
         return {"present": [], "late": [], "absent": []}
@@ -57,7 +78,12 @@ def day_records(day):
 
 
 def _safe_spreadsheet_value(value):
-    """Prevent spreadsheet formula injection in text cells."""
+    """Prevent spreadsheet formula injection in text cells.
+
+    Student names are teacher-entered data. A name beginning with =, +, -, or @
+    would otherwise be evaluated as a formula when the workbook is opened.
+    Prefixing an apostrophe makes Excel treat it as literal text.
+    """
     if isinstance(value, str) and value.startswith(("=", "+", "-", "@")):
         return "'" + value
     return value
@@ -74,6 +100,12 @@ def _write_excel_section(
     row_font,
     empty_message,
 ):
+    """Write one coloured title/header/rows block and return the next free row.
+
+    The extra blank row returned at the end is intentional: it separates status
+    sections visually on screen and on paper, matching the reference workbook.
+    """
+    # Title row spans all three columns so long bilingual headings stay legible.
     sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
     heading = sheet.cell(row=row, column=1, value=title)
     heading.font = Font(bold=True, size=14, color=REFERENCE["black"])
@@ -81,6 +113,8 @@ def _write_excel_section(
     heading.alignment = Alignment(horizontal="left")
     row += 1
 
+    # Column headers. readingOrder=2 tells Excel to treat the Arabic header as
+    # right-to-left text, so punctuation and alignment render correctly.
     for column, label in enumerate(("#", "Name (English)", "الاسم (عربي)"), start=1):
         cell = sheet.cell(row=row, column=column, value=label)
         cell.font = Font(bold=True, size=11)
@@ -92,6 +126,8 @@ def _write_excel_section(
 
     if records:
         for record in records:
+            # All text passes through the formula-injection guard. The numeric
+            # student id can stay untouched.
             values = (
                 record.student_id,
                 _safe_spreadsheet_value(record.student.name_en),
@@ -105,6 +141,8 @@ def _write_excel_section(
                     cell.alignment = Alignment(horizontal="right", readingOrder=2)
             row += 1
     else:
+        # Merge the empty-state row so the bilingual message is not squeezed
+        # into the narrow student-id column.
         sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
         cell = sheet.cell(row=row, column=1, value=empty_message)
         cell.font = row_font
@@ -120,12 +158,17 @@ def build_excel(day):
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "Attendance"
+    # Hiding grid lines makes the coloured blocks read as deliberate design
+    # rather than colored cells inside a spreadsheet grid.
     sheet.sheet_view.showGridLines = False
 
+    # Wider name columns match the reference workbook: the Arabic column needs
+    # more room because the font is larger and right-aligned.
     sheet.column_dimensions["A"].width = 8
     sheet.column_dimensions["B"].width = 42
     sheet.column_dimensions["C"].width = 34
 
+    # ---- Title block -----------------------------------------------------
     sheet.merge_cells("A1:C1")
     sheet["A1"] = (
         "Egypt-Japan KOSEN Institute — Class C1 Attendance / "
@@ -135,6 +178,7 @@ def build_excel(day):
     sheet["A1"].alignment = Alignment(horizontal="center", wrap_text=True)
     sheet.row_dimensions[1].height = 34
 
+    # ---- Date and summary counts ----------------------------------------
     sheet["A2"] = f"Date / التاريخ: {day.isoformat()}"
     sheet["B2"] = (
         f"Present / حاضر: {len(records['present'])}   "
@@ -144,6 +188,9 @@ def build_excel(day):
     for coordinate in ("A2", "B2", "C2"):
         sheet[coordinate].font = Font(bold=True, size=12)
 
+    # ---- Status sections -------------------------------------------------
+    # Order matches the daily checklist. Colours match the PNG/print poster:
+    # green for attended, amber for late, yellow for absent.
     row = 4
     row = _write_excel_section(
         sheet,
@@ -176,6 +223,7 @@ def build_excel(day):
         empty_message="No absent students — everyone attended! / لا يوجد غياب — الجميع حاضر!",
     )
 
+    # openpyxl saves to a stream; the route sends these bytes as a download.
     buffer = io.BytesIO()
     workbook.save(buffer)
     return buffer.getvalue()
@@ -183,9 +231,16 @@ def build_excel(day):
 
 @lru_cache(maxsize=64)
 def _load_font(path_text, size):
-    """Load a bundled font, then a system copy, then Pillow's default."""
+    """Load a bundled font, then a system copy, then Pillow's default.
+
+    Caching matters because the poster asks for the same font/size pair many
+    times while drawing headers and rows.
+    """
     path = Path(path_text)
     candidates = [path]
+    # Local development fallbacks: some Linux distributions install fonts in
+    # these locations instead of inside the project. Production always finds
+    # the committed copy first.
     if path.name == "DejaVuSans-Bold.ttf":
         candidates.append(Path("/usr/share/fonts/TTF/DejaVuSans-Bold.ttf"))
     if path.name == "NotoSansArabic-Bold.ttf":
@@ -195,6 +250,8 @@ def _load_font(path_text, size):
             return ImageFont.truetype(str(candidate), size)
         except OSError:
             continue
+    # Last resort: let Pillow search its own font path, then use the built-in
+    # bitmap font. A slightly ugly poster is better than a crashed export.
     try:
         return ImageFont.truetype("DejaVuSans-Bold.ttf", size)
     except OSError:
@@ -202,7 +259,12 @@ def _load_font(path_text, size):
 
 
 def _draw_text(draw, xy, text, font, fill, *, anchor="la", rtl=False):
-    """Draw text with optional RTL shaping, falling back safely."""
+    """Draw text with optional RTL shaping, falling back safely.
+
+    Pillow only joins/shapes Arabic glyphs when built with Raqm. Older builds
+    raise on the ``direction`` argument, so fall back to ordinary drawing
+    instead of failing the whole export.
+    """
     kwargs = {"font": font, "fill": fill, "anchor": anchor}
     if rtl:
         try:
@@ -214,7 +276,12 @@ def _draw_text(draw, xy, text, font, fill, *, anchor="la", rtl=False):
 
 
 def _fit_font(draw, text, font_path, max_width, start_size, min_size=18):
-    """Shrink, then truncate, until text fits in max_width."""
+    """Shrink, then truncate, until text fits in max_width.
+
+    Long student names are common, so the poster first reduces the font size in
+    2 px steps and only then truncates with an ellipsis. This keeps names as
+    readable as possible without overlapping the Arabic column.
+    """
     size = start_size
     while size >= min_size:
         font = _load_font(str(font_path), size)
@@ -233,7 +300,12 @@ def _fit_font(draw, text, font_path, max_width, start_size, min_size=18):
 
 
 def poster_model(day):
-    """Return the data used by the PNG poster."""
+    """Return the small data model shared by the PNG poster and its tests.
+
+    Only late and absent students are listed in the image. Present students are
+    omitted on purpose so the poster stays short enough to share in a group
+    chat. Counts include students who were marked late.
+    """
     records = day_records(day)
     return {
         "date": day.isoformat(),
@@ -247,6 +319,9 @@ def poster_model(day):
 def build_png(day):
     """Return the reference-style bilingual Late/Absent poster as PNG bytes."""
     model = poster_model(day)
+
+    # Everything is laid out in logical pixels, then rendered at 2x so text and
+    # borders stay crisp when the image is viewed on a phone or projected.
     scale = 2
     width = 1400
     pad = 60
@@ -255,6 +330,8 @@ def build_png(day):
     gap = 16
     header_h = 540
 
+    # The poster height depends on how many late/absent students were saved.
+    # Empty sections still reserve one row so their "nobody late" message fits.
     def section_height(rows):
         return section_h + gap + max(len(rows), 1) * line_h + gap
 
@@ -262,13 +339,16 @@ def build_png(day):
     image = Image.new("RGB", (width * scale, height * scale), POSTER["white"])
     draw = ImageDraw.Draw(image)
 
+    # Convert logical coordinates to the 2x canvas.
     def px(value):
         return int(value * scale)
 
     def center_text(text, y, font_path, size, fill, *, rtl=False):
+        # Shared header helper: fit the line, then center it horizontally.
         font, fitted = _fit_font(draw, text, font_path, px(width - 2 * pad), px(size))
         _draw_text(draw, (px(width / 2), px(y)), fitted, font, fill, anchor="mm", rtl=rtl)
 
+    # ---- Header: English first, then Arabic ------------------------------
     center_text("Late & Absent Students", 60, LATIN_FONT, 64, POSTER["black"])
     center_text("المتأخرون والغائبون", 145, ARABIC_FONT, 56, POSTER["black"], rtl=True)
     center_text(
@@ -287,6 +367,9 @@ def build_png(day):
         rtl=True,
     )
 
+    # ---- Date badge ------------------------------------------------------
+    # The badge width follows the actual date text, so it also works if the
+    # date format ever changes.
     date_font = _load_font(str(LATIN_FONT), px(30))
     date_bbox = draw.textbbox((0, 0), model["date"], font=date_font)
     badge_w = date_bbox[2] - date_bbox[0] + px(60)
@@ -305,6 +388,7 @@ def build_png(day):
         anchor="mm",
     )
 
+    # ---- Divider and counts ---------------------------------------------
     draw.line([(px(pad), px(405)), (px(width - pad), px(405))], fill=POSTER["black"], width=px(6))
     center_text(
         f"Late: {model['late_count']}   Absent: {model['absent_count']}",
@@ -323,6 +407,8 @@ def build_png(day):
     )
 
     def draw_section(y, title_en, title_ar, rows, fill, empty_en, empty_ar):
+        """Draw a titled status block and return the y position below it."""
+        # Title bar: English on the left, Arabic on the right.
         top = px(y)
         draw.rectangle(
             [px(pad), top, px(width - pad), top + px(section_h)],
@@ -353,6 +439,7 @@ def build_png(day):
 
         if rows:
             for record in rows:
+                # One bordered row per student: id, English name, Arabic name.
                 top = px(y)
                 draw.rectangle(
                     [px(pad), top, px(width - pad), top + px(line_h)],
@@ -404,6 +491,8 @@ def build_png(day):
                 )
                 y += line_h
         else:
+            # Keep the same row height so the poster does not jump when a
+            # section becomes empty.
             top = px(y)
             draw.rectangle(
                 [px(pad), top, px(width - pad), top + px(line_h)],
@@ -423,6 +512,7 @@ def build_png(day):
             y += line_h
         return y + gap
 
+    # Late is drawn above absent because it is the smaller, more urgent list.
     y = header_h
     y = draw_section(
         y,
@@ -443,6 +533,7 @@ def build_png(day):
         "لا يوجد غياب — الجميع حاضر!",
     )
 
+    # Footer is anchored from the bottom so it always sits on the canvas edge.
     footer_font = _load_font(str(LATIN_FONT), px(24))
     footer_ar_font = _load_font(str(ARABIC_FONT), px(22))
     _draw_text(

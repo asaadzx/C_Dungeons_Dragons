@@ -1,3 +1,5 @@
+"""Tests for attendance grouping, export layouts, and download responses."""
+
 import io
 from datetime import date
 
@@ -56,6 +58,8 @@ def test_excel_uses_reference_layout(app):
         data = build_excel(date(2026, 10, 22))
         workbook = load_workbook(io.BytesIO(data))
         sheet = workbook.active
+        # Flatten every non-empty cell so assertions do not depend on the exact
+        # row/column position of each bilingual heading.
         text = " ".join(
             str(cell.value)
             for row in sheet.iter_rows()
@@ -112,6 +116,7 @@ def test_png_uses_reference_white_palette(app):
         data = build_png(date(2026, 10, 22))
 
     assert data[:8] == b"\x89PNG\r\n\x1a\n"
+    # The reference design is white; the old export used the site's dark red.
     image = Image.open(io.BytesIO(data)).convert("RGB")
     assert image.getpixel((0, 0)) == (255, 255, 255)
     assert image.getpixel((0, 0)) != (190, 26, 26)
@@ -187,6 +192,8 @@ def test_export_filenames_match_reference(app, client):
     _seed(app)
     _login(client)
 
+    # PNG/XLSX adopt the reference "c1Class" stem. CSV deliberately keeps its
+    # existing lowercase name so external weekly workflows are unaffected.
     for path, expected in (
         ("/attendance/export.png?date=2026-10-22", "2026-10-22-c1Class-attendance.png"),
         ("/attendance/export.xlsx?date=2026-10-22", "2026-10-22-c1Class-attendance.xlsx"),

@@ -810,10 +810,12 @@ table {
 /* ---------------------------------------------------------------------------
    Attendance print/PDF poster (reference class-c1-attendance design)
    --------------------------------------------------------------------------- */
+/* Hidden on screen: the poster exists only for the browser's print/PDF view. */
 .attendance-print {
     display: none;
 }
 
+/* Printed poster uses a white background even though the site is pixel-themed. */
 .attendance-poster {
     background: #ffffff;
     color: #000000;
@@ -942,12 +944,15 @@ table {
         text-shadow: none;
     }
 
+    /* Remove the site chrome AND its layout space. Using display:none avoids
+       the blank pages that visibility:hidden alone would leave behind. */
     .site-header,
     .site-footer,
     main > *:not(.attendance-print) {
         display: none !important;
     }
 
+    /* Let the poster use the full printable page width. */
     main.container {
         width: 100%;
         max-width: none;
@@ -955,6 +960,7 @@ table {
         padding: 0;
     }
 
+    /* This is the only visible element in the printed document. */
     .attendance-print {
         display: block !important;
     }
@@ -963,6 +969,8 @@ table {
         padding: 0;
     }
 
+    /* Browsers normally drop background colors to save ink. These highlights
+       are meaningful status indicators, so force them into the PDF. */
     .ap-row-late,
     .ap-row-absent,
     .ap-section-title,
