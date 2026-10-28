@@ -92,7 +92,7 @@
 | title | VARCHAR(200) | NOT NULL |
 | link | VARCHAR(500) | NOT NULL |
 | description | TEXT | NOT NULL |
-| event_date_actual | DATE | - |
+| event_date_actual | DATE | NULLABLE |
 | event_date | VARCHAR(100) | NOT NULL |
 | location | VARCHAR(200) | NOT NULL |
 | created_at | DATETIME | NOT NULL |

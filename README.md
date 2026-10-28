@@ -48,7 +48,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env and leave DATABASE_URL empty for local SQLite before the next command.
+# Edit .env and remove the DATABASE_URL line or comment it out (# DATABASE_URL=...) for local SQLite before the next command.
 flask --app wsgi db upgrade
 flask --app wsgi seed-roster
 flask --app wsgi create-admin --username teacher
@@ -62,7 +62,7 @@ Open <http://127.0.0.1:5000>.
 | Variable | Purpose |
 | --- | --- |
 | `SECRET_KEY` | Signs session cookies and CSRF tokens. Use a long random value. |
-| `DATABASE_URL` | PostgreSQL URL, or empty for local SQLite. |
+| `DATABASE_URL` | PostgreSQL URL, or unset/commented out for local SQLite. |
 | `FLASK_ENV` | `development` locally, `production` on Railway. |
 | `FLASK_APP` | `wsgi.py`. |
 | `TZ` | `Africa/Cairo` (or your local timezone). |
