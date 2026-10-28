@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h2 class="page-title">&#128640; Manage Projects</h2>
+<p class="page-subtitle">
+    <a class="nes-btn" href="{{ url_for('admin.index') }}">Back to staff panel</a>
+</p>
+
+<section class="nes-container with-title is-rounded">
+    <p class="title">New Project</p>
+    <form method="POST" action="{{ url_for('admin.add_project') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="project-title">Title</label>
+        <input class="nes-input" id="project-title" name="title" required>
+        <label for="project-description" class="mt-1">Description</label>
+        <textarea class="nes-textarea" id="project-description" name="description"></textarea>
+        <label for="project-url" class="mt-1">Link (optional)</label>
+        <input class="nes-input" id="project-url" name="url" placeholder="https://example.com">
+        <label for="project-position" class="mt-1">Position</label>
+        <input class="nes-input" id="project-position" type="number" name="position" value="0">
+        <button class="nes-btn is-primary mt-1" type="submit">Add project</button>
+    </form>
+</section>
+
+{% for project in projects %}
+    <section class="nes-container with-title is-rounded mt-2">
+        <p class="title">{{ project.title }}</p>
+        <form method="POST" action="{{ url_for('admin.edit_project', item_id=project.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="grid-2">
+                <div>
+                    <label>Title</label>
+                    <input class="nes-input" name="title" value="{{ project.title }}" required>
+                </div>
+                <div>
+                    <label>Position</label>
+                    <input class="nes-input" type="number" name="position"
+                           value="{{ project.position }}">
+                </div>
+            </div>
+            <label class="mt-1">Description</label>
+            <textarea class="nes-textarea" name="description">{{ project.description }}</textarea>
+            <label class="mt-1">Link (optional)</label>
+            <input class="nes-input" name="url" value="{{ project.url }}"
+                   placeholder="https://example.com">
+            <button class="nes-btn is-primary mt-1" type="submit">Save project</button>
+        </form>
+        <form method="POST" action="{{ url_for('admin.delete_project', item_id=project.id) }}" class="mt-1">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="nes-btn is-error" type="submit">Delete project</button>
+        </form>
+    </section>
+{% else %}
+    <section class="nes-container is-rounded mt-2">
+        <p>No projects yet.</p>
+    </section>
+{% endfor %}
+
+{% endblock %}
