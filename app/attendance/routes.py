@@ -93,7 +93,7 @@ def export_xlsx():
     return _download(
         build_excel(day),
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        f"{day.isoformat()}-c1-attendance.xlsx",
+        f"{day.isoformat()}-c1Class-attendance.xlsx",
     )
 
 
@@ -102,7 +102,7 @@ def export_xlsx():
 def export_png():
     day = _parse_day(request.args.get("date", date.today().isoformat()))
     return _download(
-        build_png(day), "image/png", f"{day.isoformat()}-c1-attendance.png"
+        build_png(day), "image/png", f"{day.isoformat()}-c1Class-attendance.png"
     )
 
 

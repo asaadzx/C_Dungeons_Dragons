@@ -183,6 +183,20 @@ def test_daily_page_has_print_poster(client, app):
     assert "الغائبون" in page
 
 
+def test_export_filenames_match_reference(app, client):
+    _seed(app)
+    _login(client)
+
+    for path, expected in (
+        ("/attendance/export.png?date=2026-10-22", "2026-10-22-c1Class-attendance.png"),
+        ("/attendance/export.xlsx?date=2026-10-22", "2026-10-22-c1Class-attendance.xlsx"),
+        ("/attendance/export.csv?date=2026-10-22", "2026-10-22-c1-attendance.csv"),
+    ):
+        response = client.get(path)
+        disposition = response.headers.get("Content-Disposition", "")
+        assert f"filename={expected}" in disposition
+
+
 def _login(client):
     import re
 
