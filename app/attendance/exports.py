@@ -1,172 +1,558 @@
 # ---------------------------------------------------------------------------
 # app/attendance/exports.py
-# Server-side export builders for a single day's attendance:
-#   * build_excel(day)  -> .xlsx bytes (openpyxl)
-#   * build_png(day)    -> .png bytes (Pillow)
+# Builds the downloadable attendance artifacts for one day:
+#   * build_excel(day) -> .xlsx bytes (openpyxl)
+#   * build_png(day)   -> .png bytes (Pillow)
 #
-# Both reuse day_records() so the data grouping lives in one place and the
-# export format never drifts from the CSV.
+# Both builders start from day_records(), so grouping and sorting live in one
+# place. The CSV export deliberately does NOT use this module: it has a stable
+# machine-readable schema because weekly-upload validation depends on it.
+#
+# The visual design follows the reference class-c1-attendance project: a white
+# background, heavy black outlines, green/amber/yellow status blocks, and
+# English + Arabic text together.
 # ---------------------------------------------------------------------------
 
 import io
+from functools import lru_cache
+from pathlib import Path
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
-from openpyxl.utils import get_column_letter
 from PIL import Image, ImageDraw, ImageFont
 
 from .services import get_session
 
-# The project's pixel palette (matches static/css/style.css).
-PALETTE = {
-    "dark_red": "#BE1A1A",     # background
-    "red": "#D0311E",          # headings
-    "yellow": "#F7D87F",       # absent highlight
-    "cream": "#F8EBAB",        # text
+# Fonts are committed with the app so production does not depend on fonts being
+# installed on the host. _load_font() still has OS fallbacks for local checkouts.
+FONT_DIR = Path(__file__).resolve().parent.parent / "static" / "fonts"
+LATIN_FONT = FONT_DIR / "DejaVuSans-Bold.ttf"
+ARABIC_FONT = FONT_DIR / "NotoSansArabic-Bold.ttf"
+
+# Pillow accepts CSS-style colors, including the leading "#".
+POSTER = {
+    "yellow": "#FFE600",
+    "amber": "#FDE68A",
+    "black": "#000000",
+    "white": "#FFFFFF",
+    "footer": "#333333",
 }
 
-# Status order and human labels used in every export.
-SECTIONS = [
-    ("present", "ATTENDED"),
-    ("late", "LATE"),
-    ("absent", "ABSENT"),
-]
+# openpyxl expects hex colors WITHOUT the leading "#". Keep this palette
+# separate from POSTER so each drawing library gets the format it expects.
+REFERENCE = {
+    "green": "DCFCE7",
+    "amber": "FDE68A",
+    "yellow": "FFE600",
+    "yellow_soft": "FFF2B0",
+    "black": "000000",
+    "white": "FFFFFF",
+}
 
 
-def day_records(day):
-    """Group a day's records by status: {status: [records sorted by name]}.
+def group_records(records):
+    """Return {status: [records]} with each list sorted by English name.
 
-    Returns empty lists when the day has not been saved yet.
+    Late stays in its own bucket instead of being merged into present because
+    the poster must show late arrivals separately. Weekly percentages are
+    calculated elsewhere and still count late as attended.
     """
-    session = get_session(day)
     grouped = {"present": [], "late": [], "absent": []}
-    if session is None:
-        return grouped
-
-    for record in sorted(session.records, key=lambda r: r.student.name_en):
+    for record in sorted(records, key=lambda r: r.student.name_en.lower()):
+        # setdefault keeps this tolerant of any future status added to the
+        # model without silently dropping that record from the export.
         grouped.setdefault(record.status, []).append(record)
     return grouped
 
 
+def day_records(day):
+    """Return a saved day's records grouped by status.
+
+    An unsaved day returns the same three empty buckets, so Excel, PNG, and
+    template code never need a separate "no session" branch.
+    """
+    session = get_session(day)
+    if session is None:
+        return {"present": [], "late": [], "absent": []}
+    return group_records(session.records)
+
+
+def _safe_spreadsheet_value(value):
+    """Prevent spreadsheet formula injection in text cells.
+
+    Student names are teacher-entered data. A name beginning with =, +, -, or @
+    would otherwise be evaluated as a formula when the workbook is opened.
+    Prefixing an apostrophe makes Excel treat it as literal text.
+    """
+    if isinstance(value, str) and value.startswith(("=", "+", "-", "@")):
+        return "'" + value
+    return value
+
+
+def _write_excel_section(
+    sheet,
+    row,
+    title,
+    records,
+    *,
+    header_fill,
+    row_fill,
+    row_font,
+    empty_message,
+):
+    """Write one coloured title/header/rows block and return the next free row.
+
+    The extra blank row returned at the end is intentional: it separates status
+    sections visually on screen and on paper, matching the reference workbook.
+    """
+    # Title row spans all three columns so long bilingual headings stay legible.
+    sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+    heading = sheet.cell(row=row, column=1, value=title)
+    heading.font = Font(bold=True, size=14, color=REFERENCE["black"])
+    heading.fill = PatternFill("solid", fgColor=header_fill)
+    heading.alignment = Alignment(horizontal="left")
+    row += 1
+
+    # Column headers. readingOrder=2 tells Excel to treat the Arabic header as
+    # right-to-left text, so punctuation and alignment render correctly.
+    for column, label in enumerate(("#", "Name (English)", "الاسم (عربي)"), start=1):
+        cell = sheet.cell(row=row, column=column, value=label)
+        cell.font = Font(bold=True, size=11)
+        cell.fill = PatternFill("solid", fgColor=header_fill)
+    sheet.cell(row=row, column=3).alignment = Alignment(
+        horizontal="right", readingOrder=2
+    )
+    row += 1
+
+    if records:
+        for record in records:
+            # All text passes through the formula-injection guard. The numeric
+            # student id can stay untouched.
+            values = (
+                record.student_id,
+                _safe_spreadsheet_value(record.student.name_en),
+                _safe_spreadsheet_value(record.student.name_ar),
+            )
+            for column, value in enumerate(values, start=1):
+                cell = sheet.cell(row=row, column=column, value=value)
+                cell.font = row_font
+                cell.fill = PatternFill("solid", fgColor=row_fill)
+                if column == 3:
+                    cell.alignment = Alignment(horizontal="right", readingOrder=2)
+            row += 1
+    else:
+        # Merge the empty-state row so the bilingual message is not squeezed
+        # into the narrow student-id column.
+        sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+        cell = sheet.cell(row=row, column=1, value=empty_message)
+        cell.font = row_font
+        cell.fill = PatternFill("solid", fgColor=row_fill)
+        row += 1
+
+    return row + 1
+
+
 def build_excel(day):
-    """Return an .xlsx workbook as bytes with Attended/Late/Absent sections."""
+    """Return the reference-style bilingual .xlsx workbook as bytes."""
     records = day_records(day)
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "Attendance"
+    # Hiding grid lines makes the coloured blocks read as deliberate design
+    # rather than colored cells inside a spreadsheet grid.
+    sheet.sheet_view.showGridLines = False
 
-    # Column widths (index, letter, width).
-    sheet.column_dimensions["A"].width = 6
-    sheet.column_dimensions["B"].width = 40
-    sheet.column_dimensions["C"].width = 40
+    # Wider name columns match the reference workbook: the Arabic column needs
+    # more room because the font is larger and right-aligned.
+    sheet.column_dimensions["A"].width = 8
+    sheet.column_dimensions["B"].width = 42
+    sheet.column_dimensions["C"].width = 34
 
-    # ---- Title block ----
-    sheet["A1"] = f"C1 Attendance - {day.isoformat()}"
-    sheet["A1"].font = Font(bold=True, size=14, color=PALETTE["red"][1:])
+    # ---- Title block -----------------------------------------------------
     sheet.merge_cells("A1:C1")
-    sheet["A1"].alignment = Alignment(horizontal="center")
+    sheet["A1"] = (
+        "Egypt-Japan KOSEN Institute — Class C1 Attendance / "
+        "معهد مصر اليابان كوسن — حضور وغياب فصل C1"
+    )
+    sheet["A1"].font = Font(bold=True, size=16)
+    sheet["A1"].alignment = Alignment(horizontal="center", wrap_text=True)
+    sheet.row_dimensions[1].height = 34
 
-    row = 3
-    for status, label in SECTIONS:
-        # Section heading.
-        sheet.cell(row=row, column=1, value=label)
-        heading = sheet.cell(row=row, column=1)
-        heading.font = Font(bold=True, size=12, color="FFFFFF")
-        heading.fill = PatternFill("solid", fgColor=PALETTE["dark_red"][1:])
-        sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
-        row += 1
+    # ---- Date and summary counts ----------------------------------------
+    sheet["A2"] = f"Date / التاريخ: {day.isoformat()}"
+    sheet["B2"] = (
+        f"Present / حاضر: {len(records['present'])}   "
+        f"Late / متأخر: {len(records['late'])}"
+    )
+    sheet["C2"] = f"Absent / غائب: {len(records['absent'])}"
+    for coordinate in ("A2", "B2", "C2"):
+        sheet[coordinate].font = Font(bold=True, size=12)
 
-        items = records.get(status, [])
+    # ---- Status sections -------------------------------------------------
+    # Order matches the daily checklist. Colours match the PNG/print poster:
+    # green for attended, amber for late, yellow for absent.
+    row = 4
+    row = _write_excel_section(
+        sheet,
+        row,
+        "Attended / الحاضرون",
+        records["present"],
+        header_fill=REFERENCE["green"],
+        row_fill=REFERENCE["white"],
+        row_font=Font(size=11),
+        empty_message="No present students / لا يوجد حاضرون",
+    )
+    row = _write_excel_section(
+        sheet,
+        row,
+        "Late / المتأخرون",
+        records["late"],
+        header_fill=REFERENCE["amber"],
+        row_fill=REFERENCE["yellow_soft"],
+        row_font=Font(bold=True, size=12),
+        empty_message="Nobody late / لا يوجد متأخرون",
+    )
+    _write_excel_section(
+        sheet,
+        row,
+        "Absent / الغائبون",
+        records["absent"],
+        header_fill=REFERENCE["yellow"],
+        row_fill=REFERENCE["yellow"],
+        row_font=Font(bold=True, size=18),
+        empty_message="No absent students — everyone attended! / لا يوجد غياب — الجميع حاضر!",
+    )
 
-        # Absent and late rows are highlighted so they stand out on paper.
-        if status == "absent":
-            fill = PatternFill("solid", fgColor=PALETTE["yellow"][1:])
-            font = Font(bold=True, size=12)
-        elif status == "late":
-            fill = PatternFill("solid", fgColor=PALETTE["red"][1:])
-            font = Font(bold=True, size=12, color="FFFFFF")
-        else:
-            fill = None
-            font = Font(size=11)
-
-        if not items:
-            sheet.cell(row=row, column=1, value="-")
-            row += 1
-        else:
-            for index, record in enumerate(items, start=1):
-                cells = [
-                    sheet.cell(row=row, column=1, value=index),
-                    sheet.cell(row=row, column=2, value=record.student.name_en),
-                    sheet.cell(row=row, column=3, value=record.student.name_ar),
-                ]
-                for cell in cells:
-                    cell.font = font
-                    if fill is not None:
-                        cell.fill = fill
-                row += 1
-        row += 1  # blank line between sections
-
+    # openpyxl saves to a stream; the route sends these bytes as a download.
     buffer = io.BytesIO()
     workbook.save(buffer)
     return buffer.getvalue()
 
 
-def _load_font(size):
-    """Return a usable font, falling back to Pillow's default.
+@lru_cache(maxsize=64)
+def _load_font(path_text, size):
+    """Load a bundled font, then a system copy, then Pillow's default.
 
-    We do not bundle a TTF, so on a fresh host this returns the built-in
-    bitmap font. That is small but readable and, crucially, never crashes.
+    Caching matters because the poster asks for the same font/size pair many
+    times while drawing headers and rows.
     """
+    path = Path(path_text)
+    candidates = [path]
+    # Local development fallbacks: some Linux distributions install fonts in
+    # these locations instead of inside the project. Production always finds
+    # the committed copy first.
+    if path.name == "DejaVuSans-Bold.ttf":
+        candidates.append(Path("/usr/share/fonts/TTF/DejaVuSans-Bold.ttf"))
+    if path.name == "NotoSansArabic-Bold.ttf":
+        candidates.append(Path("/usr/share/fonts/noto/NotoSansArabic-Bold.ttf"))
+    for candidate in candidates:
+        try:
+            return ImageFont.truetype(str(candidate), size)
+        except OSError:
+            continue
+    # Last resort: let Pillow search its own font path, then use the built-in
+    # bitmap font. A slightly ugly poster is better than a crashed export.
     try:
         return ImageFont.truetype("DejaVuSans-Bold.ttf", size)
     except OSError:
         return ImageFont.load_default()
 
 
-def build_png(day):
-    """Return a poster-style .png (bytes) listing late and absent students."""
+def _draw_text(draw, xy, text, font, fill, *, anchor="la", rtl=False):
+    """Draw text with optional RTL shaping, falling back safely.
+
+    Pillow only joins/shapes Arabic glyphs when built with Raqm. Older builds
+    raise on the ``direction`` argument, so fall back to ordinary drawing
+    instead of failing the whole export.
+    """
+    kwargs = {"font": font, "fill": fill, "anchor": anchor}
+    if rtl:
+        try:
+            draw.text(xy, text, direction="rtl", **kwargs)
+            return
+        except (TypeError, ValueError):
+            pass
+    draw.text(xy, text, **kwargs)
+
+
+def _fit_font(draw, text, font_path, max_width, start_size, min_size=18):
+    """Shrink, then truncate, until text fits in max_width.
+
+    Long student names are common, so the poster first reduces the font size in
+    2 px steps and only then truncates with an ellipsis. This keeps names as
+    readable as possible without overlapping the Arabic column.
+    """
+    size = start_size
+    while size >= min_size:
+        font = _load_font(str(font_path), size)
+        bbox = draw.textbbox((0, 0), text, font=font)
+        if bbox[2] - bbox[0] <= max_width:
+            return font, text
+        size -= 2
+
+    font = _load_font(str(font_path), min_size)
+    truncated = text
+    while truncated and draw.textlength(truncated + "…", font=font) > max_width:
+        truncated = truncated[:-1]
+    if truncated != text:
+        truncated += "…"
+    return font, truncated
+
+
+def poster_model(day):
+    """Return the small data model shared by the PNG poster and its tests.
+
+    Only late and absent students are listed in the image. Present students are
+    omitted on purpose so the poster stays short enough to share in a group
+    chat. Counts include students who were marked late.
+    """
     records = day_records(day)
-    absent = [r.student.name_en for r in records.get("absent", [])]
-    late = [r.student.name_en for r in records.get("late", [])]
+    return {
+        "date": day.isoformat(),
+        "late": records["late"],
+        "absent": records["absent"],
+        "late_count": len(records["late"]),
+        "absent_count": len(records["absent"]),
+    }
 
-    width = 900
-    line_height = 46
-    header_height = 150
-    late_block = 60 + len(late) * line_height if late else 0
-    absent_block = 60 + max(len(absent), 1) * line_height
-    height = header_height + late_block + absent_block + 80
 
-    image = Image.new("RGB", (width, height), PALETTE["dark_red"])
+def build_png(day):
+    """Return the reference-style bilingual Late/Absent poster as PNG bytes."""
+    model = poster_model(day)
+
+    # Everything is laid out in logical pixels, then rendered at 2x so text and
+    # borders stay crisp when the image is viewed on a phone or projected.
+    scale = 2
+    width = 1400
+    pad = 60
+    line_h = 110
+    section_h = 70
+    gap = 16
+    header_h = 540
+
+    # The poster height depends on how many late/absent students were saved.
+    # Empty sections still reserve one row so their "nobody late" message fits.
+    def section_height(rows):
+        return section_h + gap + max(len(rows), 1) * line_h + gap
+
+    height = header_h + section_height(model["late"]) + section_height(model["absent"]) + 130
+    image = Image.new("RGB", (width * scale, height * scale), POSTER["white"])
     draw = ImageDraw.Draw(image)
 
-    title_font = _load_font(40)
-    small_font = _load_font(22)
-    name_font = _load_font(28)
+    # Convert logical coordinates to the 2x canvas.
+    def px(value):
+        return int(value * scale)
 
-    # Header.
-    draw.text((40, 40), "C1 ATTENDANCE", font=title_font, fill=PALETTE["cream"])
-    draw.text((40, 100), day.isoformat(), font=small_font, fill=PALETTE["cream"])
+    def center_text(text, y, font_path, size, fill, *, rtl=False):
+        # Shared header helper: fit the line, then center it horizontally.
+        font, fitted = _fit_font(draw, text, font_path, px(width - 2 * pad), px(size))
+        _draw_text(draw, (px(width / 2), px(y)), fitted, font, fill, anchor="mm", rtl=rtl)
 
-    y = header_height
+    # ---- Header: English first, then Arabic ------------------------------
+    center_text("Late & Absent Students", 60, LATIN_FONT, 64, POSTER["black"])
+    center_text("المتأخرون والغائبون", 145, ARABIC_FONT, 56, POSTER["black"], rtl=True)
+    center_text(
+        "Class C1 — Egypt-Japan KOSEN Institute",
+        215,
+        LATIN_FONT,
+        26,
+        POSTER["black"],
+    )
+    center_text(
+        "فصل C1 — معهد مصر اليابان كوسن",
+        255,
+        ARABIC_FONT,
+        26,
+        POSTER["black"],
+        rtl=True,
+    )
 
-    # Late section.
-    if late:
-        draw.text((40, y), "LATE", font=small_font, fill=PALETTE["red"])
-        y += 40
-        for name in late:
-            draw.text((60, y), f"- {name}", font=name_font, fill=PALETTE["cream"])
-            y += line_height
-        y += 20
+    # ---- Date badge ------------------------------------------------------
+    # The badge width follows the actual date text, so it also works if the
+    # date format ever changes.
+    date_font = _load_font(str(LATIN_FONT), px(30))
+    date_bbox = draw.textbbox((0, 0), model["date"], font=date_font)
+    badge_w = date_bbox[2] - date_bbox[0] + px(60)
+    draw.rectangle(
+        [px(width / 2) - badge_w / 2, px(310), px(width / 2) + badge_w / 2, px(370)],
+        fill=POSTER["yellow"],
+        outline=POSTER["black"],
+        width=px(4),
+    )
+    _draw_text(
+        draw,
+        (px(width / 2), px(340)),
+        model["date"],
+        date_font,
+        POSTER["black"],
+        anchor="mm",
+    )
 
-    # Absent section.
-    draw.text((40, y), "ABSENT", font=small_font, fill=PALETTE["yellow"])
-    y += 40
-    if absent:
-        for name in absent:
-            draw.text((60, y), f"- {name}", font=name_font, fill=PALETTE["yellow"])
-            y += line_height
-    else:
-        draw.text((60, y), "Nobody absent. Nice!", font=name_font, fill=PALETTE["cream"])
+    # ---- Divider and counts ---------------------------------------------
+    draw.line([(px(pad), px(405)), (px(width - pad), px(405))], fill=POSTER["black"], width=px(6))
+    center_text(
+        f"Late: {model['late_count']}   Absent: {model['absent_count']}",
+        450,
+        LATIN_FONT,
+        30,
+        POSTER["black"],
+    )
+    center_text(
+        f"متأخرون: {model['late_count']}   غائبون: {model['absent_count']}",
+        492,
+        ARABIC_FONT,
+        26,
+        POSTER["black"],
+        rtl=True,
+    )
+
+    def draw_section(y, title_en, title_ar, rows, fill, empty_en, empty_ar):
+        """Draw a titled status block and return the y position below it."""
+        # Title bar: English on the left, Arabic on the right.
+        top = px(y)
+        draw.rectangle(
+            [px(pad), top, px(width - pad), top + px(section_h)],
+            fill=fill,
+            outline=POSTER["black"],
+            width=px(4),
+        )
+        en_font = _load_font(str(LATIN_FONT), px(34))
+        ar_font = _load_font(str(ARABIC_FONT), px(34))
+        _draw_text(
+            draw,
+            (px(pad + 24), top + px(section_h / 2)),
+            title_en,
+            en_font,
+            POSTER["black"],
+            anchor="lm",
+        )
+        _draw_text(
+            draw,
+            (px(width - pad - 24), top + px(section_h / 2)),
+            title_ar,
+            ar_font,
+            POSTER["black"],
+            anchor="rm",
+            rtl=True,
+        )
+        y += section_h + gap
+
+        if rows:
+            for record in rows:
+                # One bordered row per student: id, English name, Arabic name.
+                top = px(y)
+                draw.rectangle(
+                    [px(pad), top, px(width - pad), top + px(line_h)],
+                    fill=fill,
+                    outline=POSTER["black"],
+                    width=px(4),
+                )
+                id_font = _load_font(str(LATIN_FONT), px(40))
+                _draw_text(
+                    draw,
+                    (px(pad + 24), top + px(line_h / 2)),
+                    f"#{record.student_id}",
+                    id_font,
+                    POSTER["black"],
+                    anchor="lm",
+                )
+                en_font, en_text = _fit_font(
+                    draw,
+                    record.student.name_en,
+                    LATIN_FONT,
+                    px((width - 2 * pad) * 0.52),
+                    px(40),
+                    px(24),
+                )
+                _draw_text(
+                    draw,
+                    (px(pad + 120), top + px(line_h / 2)),
+                    en_text,
+                    en_font,
+                    POSTER["black"],
+                    anchor="lm",
+                )
+                ar_font, ar_text = _fit_font(
+                    draw,
+                    record.student.name_ar,
+                    ARABIC_FONT,
+                    px((width - 2 * pad) * 0.34),
+                    px(40),
+                    px(24),
+                )
+                _draw_text(
+                    draw,
+                    (px(width - pad - 24), top + px(line_h / 2)),
+                    ar_text,
+                    ar_font,
+                    POSTER["black"],
+                    anchor="rm",
+                    rtl=True,
+                )
+                y += line_h
+        else:
+            # Keep the same row height so the poster does not jump when a
+            # section becomes empty.
+            top = px(y)
+            draw.rectangle(
+                [px(pad), top, px(width - pad), top + px(line_h)],
+                fill=fill,
+                outline=POSTER["black"],
+                width=px(4),
+            )
+            empty_font = _load_font(str(LATIN_FONT), px(34))
+            _draw_text(
+                draw,
+                (px(width / 2), top + px(line_h / 2)),
+                empty_en,
+                empty_font,
+                POSTER["black"],
+                anchor="mm",
+            )
+            y += line_h
+        return y + gap
+
+    # Late is drawn above absent because it is the smaller, more urgent list.
+    y = header_h
+    y = draw_section(
+        y,
+        "Late",
+        "المتأخرون",
+        model["late"],
+        POSTER["amber"],
+        "Nobody late",
+        "لا يوجد متأخرون",
+    )
+    y = draw_section(
+        y,
+        "Absent",
+        "الغائبون",
+        model["absent"],
+        POSTER["yellow"],
+        "No absent students — everyone attended!",
+        "لا يوجد غياب — الجميع حاضر!",
+    )
+
+    # Footer is anchored from the bottom so it always sits on the canvas edge.
+    footer_font = _load_font(str(LATIN_FONT), px(24))
+    footer_ar_font = _load_font(str(ARABIC_FONT), px(22))
+    _draw_text(
+        draw,
+        (px(width / 2), px(height - 70)),
+        "Egypt-Japan KOSEN Institute — Class C1",
+        footer_font,
+        POSTER["footer"],
+        anchor="mm",
+    )
+    _draw_text(
+        draw,
+        (px(width / 2), px(height - 35)),
+        "معهد مصر اليابان كوسن — فصل C1",
+        footer_ar_font,
+        POSTER["footer"],
+        anchor="mm",
+        rtl=True,
+    )
 
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")

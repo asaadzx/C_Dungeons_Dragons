@@ -29,6 +29,9 @@ instance/
 node_modules/
 .eslintcache
 
+# Isolated git worktrees
+.worktrees/
+
 # Local docs / notes (not part of the deployed app)
 README.md
 COMMANDS.md
