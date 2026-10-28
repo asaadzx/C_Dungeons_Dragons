@@ -50,8 +50,8 @@
                         <a class="contact-link" href="{{ instagram }}"
                            target="_blank" rel="noopener">&#128247; Instagram</a>
                     {% endif %}
-                    {% if student.phone %}
-                        <!-- tel: opens the phone dialer on mobile. -->
+                    {% if current_user.is_authenticated and student.phone %}
+                        <!-- tel: opens the phone dialer on mobile. Phone is staff-only. -->
                         <a class="contact-link" href="tel:{{ student.phone }}">&#128222; {{ student.phone }}</a>
                     {% endif %}
                     {% if student.email %}

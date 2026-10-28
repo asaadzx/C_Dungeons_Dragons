@@ -11,6 +11,7 @@
 <p class="page-subtitle">Calendar view for {{ current_month }}</p>
 
 <!-- ======================= ADD AN EVENT (form) ======================= -->
+{% if current_user.is_authenticated %}
 <section class="nes-container with-title is-rounded events-form">
     <p class="title">Post an event</p>
     <form action="{{ url_for('hub.add_event') }}" method="POST">
@@ -58,6 +59,13 @@
         <button type="submit" class="nes-btn is-primary mt-1">+ Add to the calendar</button>
     </form>
 </section>
+{% else %}
+<section class="nes-container is-rounded events-form">
+    <p class="title">Staff only</p>
+    <p>Staff login is required to post an event.</p>
+    <a class="nes-btn is-primary mt-1" href="{{ url_for('auth.login') }}">Log in</a>
+</section>
+{% endif %}
 
 <!-- ========================= MONTH CALENDAR ========================= -->
 <div class="month-calendar-wrap">
@@ -115,7 +123,8 @@
             {% if ev.location %}<div class="popup-row">&#128205; {{ ev.location }}</div>{% endif %}
             {% if ev.description %}<div class="popup-desc">{{ ev.description }}</div>{% endif %}
             <div class="popup-actions">
-                {% if ev.link %}<a class="nes-btn is-success" href="{{ ev.link }}" target="_blank" rel="noopener">&#128279; Open link</a>{% endif %}
+                {% set event_link = ev.link|safe_url %}
+                {% if event_link %}<a class="nes-btn is-success" href="{{ event_link }}" target="_blank" rel="noopener">&#128279; Open link</a>{% endif %}
                 <details class="calendar-join">
                     <summary class="nes-btn is-warning">&#9876; Ask to go</summary>
                     <form action="{{ url_for('hub.join_event', event_id=ev.id) }}" method="POST">

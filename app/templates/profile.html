@@ -40,7 +40,7 @@
                 <a class="contact-link" href="{{ instagram }}"
                    target="_blank" rel="noopener">&#128247; Instagram</a>
             {% endif %}
-            {% if student.phone %}
+            {% if current_user.is_authenticated and student.phone %}
                 <a class="contact-link" href="tel:{{ student.phone }}">&#128222; {{ student.phone }}</a>
             {% endif %}
             {% if student.email %}
@@ -48,7 +48,7 @@
             {% endif %}
         </div>
 
-        {% if not (website or facebook or instagram or student.phone or student.email) %}
+        {% if not (website or facebook or instagram or (current_user.is_authenticated and student.phone) or student.email) %}
             <p class="page-subtitle">No contact details added yet.</p>
         {% endif %}
     </section>

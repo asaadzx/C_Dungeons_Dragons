@@ -71,3 +71,51 @@ def test_most_recent_sunday():
     assert most_recent_sunday(date(2026, 10, 22)) == date(2026, 10, 18)
     # A Sunday maps to itself.
     assert most_recent_sunday(date(2026, 10, 18)) == date(2026, 10, 18)
+
+
+def test_saved_week_csv_export(client, app):
+    user_id, student_id = _seed(app)
+    with app.app_context():
+        from app.attendance.services import save_attendance
+
+        start = date(2026, 10, 18)
+        for offset in range(5):
+            save_attendance(
+                start + timedelta(days=offset),
+                {student_id: "present"},
+                {},
+                user_id,
+            )
+
+    _login(client)
+    response = client.get("/attendance/week/export.csv?start=2026-10-18")
+
+    assert response.status_code == 200
+    assert "text/csv" in response.content_type
+    assert "no-store" in response.headers["Cache-Control"]
+    text = response.data.decode()
+    assert text.splitlines()[0] == (
+        "student_id,name_en,name_ar,present,late,absent,percentage,absent_dates"
+    )
+    assert "A" in text
+
+
+def test_saved_week_csv_rejects_invalid_start(client, app):
+    _seed(app)
+    _login(client)
+    response = client.get(
+        "/attendance/week/export.csv?start=not-a-date",
+        follow_redirects=True,
+    )
+    assert "Invalid week start date." in response.data.decode()
+
+
+def _login(client):
+    import re
+
+    page = client.get("/auth/login").data.decode()
+    token = re.search(r'name="csrf_token" value="([^"]+)"', page).group(1)
+    client.post(
+        "/auth/login",
+        data={"username": "t", "password": "x", "csrf_token": token},
+    )

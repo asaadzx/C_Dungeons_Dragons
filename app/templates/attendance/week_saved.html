@@ -31,7 +31,7 @@
     <div class="row-between">
         <h3>Week starting {{ summary.start }}</h3>
         <a class="nes-btn is-success"
-           href="{{ url_for('attendance.weekly_export') }}">Export weekly CSV</a>
+           href="{{ url_for('attendance.weekly_export', start=summary.start) }}">Export weekly CSV</a>
     </div>
     <p class="page-subtitle">
         {{ summary.dates|length }} saved days &middot;

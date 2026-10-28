@@ -21,6 +21,7 @@ from flask_login import login_required
 
 from . import bp
 from ..extensions import db
+from ..security import safe_url
 from ..models import (
     Announcement,
     Event,
@@ -196,11 +197,16 @@ def add_event():
     if event_date_actual and not event_date_display:
         event_date_display = event_date_actual.strftime("%a %d %b")
 
+    link = request.form.get("link", "").strip()
+    if link and not safe_url(link):
+        flash("Event link must be a full http:// or https:// URL.", "error")
+        return redirect(url_for("hub.schedule"))
+
     db.session.add(
         Event(
             organizer_id=int(organizer_id),
             title=title[:200],
-            link=request.form.get("link", "").strip()[:500],
+            link=link[:500],
             description=request.form.get("description", "").strip(),
             event_date=event_date_display,
             event_date_actual=event_date_actual,
