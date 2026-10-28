@@ -56,6 +56,8 @@
                 <div class="nav-more" id="nav-more" hidden>
                     <a href="{{ url_for('hub.directory') }}" class="nes-btn is-warning">{{ t('nav.directory') }}</a>
                     <a href="{{ url_for('news.index') }}" class="nes-btn is-success">{{ t('nav.news') }}</a>
+                    <a href="{{ url_for('hub.assignments') }}" class="nes-btn is-warning">{{ t('nav.assignments') }}</a>
+                    <a href="{{ url_for('hub.projects') }}" class="nes-btn is-error">{{ t('nav.projects') }}</a>
                     <a href="{{ url_for('attendance.daily') }}" class="nes-btn is-primary">{{ t('nav.attendance') }}</a>
                     <a href="{{ url_for('attendance.weekly') }}" class="nes-btn is-warning">{{ t('nav.weekly') }}</a>
                     {% if current_user.is_authenticated %}

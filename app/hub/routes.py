@@ -26,8 +26,10 @@ from ..models import (
     Announcement,
     Event,
     EventRequest,
+    Lecture,
     LhrGame,
     Meme,
+    Project,
     Student,
     TedTalk,
 )
@@ -92,6 +94,46 @@ def student_profile(student_id):
 
     events = Event.query.filter_by(organizer_id=student_id).order_by(Event.id.desc()).all()
     return render_template("profile.html", student=student, events=events)
+
+
+@bp.route("/assignments")
+def assignments():
+    """Lecture notes grouped by day, with the newest day selected by default."""
+    lectures = Lecture.query.order_by(
+        Lecture.date.desc(), Lecture.position.asc(), Lecture.id.asc()
+    ).all()
+    dates = sorted({lecture.date for lecture in lectures}, reverse=True)
+
+    selected = None
+    requested = (request.args.get("date") or "").strip()
+    if requested:
+        try:
+            requested_date = date.fromisoformat(requested)
+        except ValueError:
+            requested_date = None
+        if requested_date in dates:
+            selected = requested_date
+    if selected is None and dates:
+        selected = dates[0]
+
+    day_lectures = (
+        [lecture for lecture in lectures if lecture.date == selected] if selected else []
+    )
+    return render_template(
+        "assignments.html",
+        dates=dates,
+        selected=selected,
+        lectures=day_lectures,
+    )
+
+
+@bp.route("/projects")
+def projects():
+    """Project cards ordered by staff-defined position."""
+    return render_template(
+        "projects.html",
+        projects=Project.query.order_by(Project.position.asc(), Project.id.asc()).all(),
+    )
 
 
 def _shift_month(year, month, delta):

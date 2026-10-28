@@ -4,7 +4,15 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.models import AttendanceRecord, AttendanceSession, Student, User
+from app.models import (
+    AttendanceRecord,
+    AttendanceSession,
+    Lecture,
+    LectureItem,
+    Project,
+    Student,
+    User,
+)
 
 
 def test_user_password_hash_and_attendance_uniqueness(app):
@@ -37,3 +45,21 @@ def test_user_password_hash_and_attendance_uniqueness(app):
         with pytest.raises(IntegrityError):
             db.session.commit()
         db.session.rollback()
+
+
+def test_lecture_items_cascade_and_project_round_trip(app):
+    with app.app_context():
+        lecture = Lecture(date=date(2026, 10, 29), title="Databases")
+        lecture.items.append(
+            LectureItem(text="Read chapter 1", url="https://example.com/ch1")
+        )
+        project = Project(title="Robot", description="Build a robot")
+        db.session.add_all([lecture, project])
+        db.session.commit()
+
+        assert lecture.items[0].text == "Read chapter 1"
+
+        db.session.delete(lecture)
+        db.session.commit()
+        assert LectureItem.query.count() == 0
+        assert Project.query.one().title == "Robot"

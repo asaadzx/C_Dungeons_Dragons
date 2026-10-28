@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h2 class="page-title">&#128218; Manage Assignments</h2>
+<p class="page-subtitle">
+    <a class="nes-btn" href="{{ url_for('admin.index') }}">Back to staff panel</a>
+</p>
+
+<section class="nes-container with-title is-rounded">
+    <p class="title">New Lecture</p>
+    <form method="POST" action="{{ url_for('admin.add_lecture') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="lecture-date">Date</label>
+        <input class="nes-input" id="lecture-date" type="date" name="date" required>
+        <label for="lecture-title" class="mt-1">Title</label>
+        <input class="nes-input" id="lecture-title" name="title" required>
+        <label for="lecture-position" class="mt-1">Position</label>
+        <input class="nes-input" id="lecture-position" type="number" name="position" value="0">
+        <button class="nes-btn is-primary mt-1" type="submit">Add lecture</button>
+    </form>
+</section>
+
+{% for lecture in lectures %}
+    <section class="nes-container with-title is-rounded mt-2">
+        <p class="title">{{ lecture.date.strftime('%d %b %Y') }}</p>
+
+        <form method="POST" action="{{ url_for('admin.edit_lecture', item_id=lecture.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="grid-2">
+                <div>
+                    <label>Date</label>
+                    <input class="nes-input" type="date" name="date"
+                           value="{{ lecture.date.isoformat() }}" required>
+                </div>
+                <div>
+                    <label>Position</label>
+                    <input class="nes-input" type="number" name="position"
+                           value="{{ lecture.position }}">
+                </div>
+            </div>
+            <label class="mt-1">Title</label>
+            <input class="nes-input" name="title" value="{{ lecture.title }}" required>
+            <button class="nes-btn is-primary mt-1" type="submit">Save lecture</button>
+        </form>
+
+        <form method="POST" action="{{ url_for('admin.delete_lecture', item_id=lecture.id) }}" class="mt-1">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="nes-btn is-error" type="submit">Delete lecture</button>
+        </form>
+
+        <h4 class="mt-2">Checklist</h4>
+        {% for item in lecture.items %}
+            <div class="admin-item">
+                <form method="POST" action="{{ url_for('admin.edit_lecture_item', item_id=item.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="grid-2">
+                        <div>
+                            <label>Text</label>
+                            <input class="nes-input" name="text" value="{{ item.text }}" required>
+                        </div>
+                        <div>
+                            <label>Position</label>
+                            <input class="nes-input" type="number" name="position"
+                                   value="{{ item.position }}">
+                        </div>
+                    </div>
+                    <label class="mt-1">Link (optional)</label>
+                    <input class="nes-input" name="url" value="{{ item.url }}"
+                           placeholder="https://example.com">
+                    <button class="nes-btn is-primary mt-1" type="submit">Save item</button>
+                </form>
+                <form method="POST" action="{{ url_for('admin.delete_lecture_item', item_id=item.id) }}" class="mt-1">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="nes-btn is-error" type="submit">Delete item</button>
+                </form>
+            </div>
+        {% else %}
+            <p>No checklist items yet.</p>
+        {% endfor %}
+
+        <form method="POST" action="{{ url_for('admin.add_lecture_item') }}" class="mt-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="lecture_id" value="{{ lecture.id }}">
+            <label>New checklist text</label>
+            <input class="nes-input" name="text" required>
+            <label class="mt-1">Link (optional)</label>
+            <input class="nes-input" name="url" placeholder="https://example.com">
+            <label class="mt-1">Position</label>
+            <input class="nes-input" type="number" name="position" value="0">
+            <button class="nes-btn is-success mt-1" type="submit">Add item</button>
+        </form>
+    </section>
+{% else %}
+    <section class="nes-container is-rounded mt-2">
+        <p>No lectures yet.</p>
+    </section>
+{% endfor %}
+
+{% endblock %}

@@ -22,6 +22,8 @@ TRANSLATIONS = {
     },
     "nav.bulletin": {"en": "Bulletin", "ar": "النشرة"},
     "nav.news": {"en": "News", "ar": "الأخبار"},
+    "nav.assignments": {"en": "Assignments", "ar": "الواجبات"},
+    "nav.projects": {"en": "Projects", "ar": "المشاريع"},
     "nav.calendar": {"en": "Calendar", "ar": "التقويم"},
     "nav.lhr": {"en": "LHR Games", "ar": "ألعاب الغرفة"},
     "nav.directory": {"en": "Directory", "ar": "دليل الطلاب"},

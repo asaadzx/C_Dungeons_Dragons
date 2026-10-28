@@ -4,6 +4,7 @@
 # ---------------------------------------------------------------------------
 
 import re
+from datetime import date
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -16,9 +17,12 @@ from ..models import (
     AttendanceAudit,
     Event,
     EventRequest,
+    Lecture,
+    LectureItem,
     LhrGame,
     Meme,
     NewsSource,
+    Project,
     Student,
     TedTalk,
 )
@@ -26,6 +30,34 @@ from ..news.feeds import clear_cache as clear_news_cache
 from ..news.feeds import ensure_news_sources
 
 CLASS_NEWS_CATEGORY = "Class News"
+SQLITE_INT_MIN = -(2**63)
+SQLITE_INT_MAX = 2**63 - 1
+
+
+def _int_or_default(value, default=0):
+    try:
+        if isinstance(value, str):
+            value = value.strip()
+        number = int(value)
+    except (TypeError, ValueError, OverflowError):
+        return default
+    if number < SQLITE_INT_MIN or number > SQLITE_INT_MAX:
+        return default
+    return number
+
+
+def _form_date(value):
+    try:
+        return date.fromisoformat((value or "").strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_link(value):
+    value = (value or "").strip()
+    if not value:
+        return ""
+    return safe_url(value)
 
 
 def _extract_youtube_id(url):
@@ -40,6 +72,204 @@ def _extract_youtube_id(url):
         if match:
             return match.group(1)
     return None
+
+
+@bp.route("/admin/assignments")
+@login_required
+def assignments_index():
+    lectures = Lecture.query.order_by(
+        Lecture.date.desc(), Lecture.position.asc(), Lecture.id.asc()
+    ).all()
+    return render_template("admin/assignments.html", lectures=lectures)
+
+
+@bp.route("/admin/assignments/lecture", methods=["POST"])
+@login_required
+def add_lecture():
+    title = request.form.get("title", "").strip()
+    lecture_date = _form_date(request.form.get("date"))
+    if not title or lecture_date is None:
+        flash("A valid date and lecture title are required.", "error")
+        return redirect(url_for("admin.assignments_index"))
+    db.session.add(
+        Lecture(
+            date=lecture_date,
+            title=title[:200],
+            position=_int_or_default(request.form.get("position")),
+        )
+    )
+    db.session.commit()
+    flash("Lecture added.", "success")
+    return redirect(url_for("admin.assignments_index"))
+
+
+@bp.route("/admin/assignments/lecture/<int:item_id>/edit", methods=["POST"])
+@login_required
+def edit_lecture(item_id):
+    item = db.session.get(Lecture, item_id)
+    if not item:
+        flash("Lecture not found.", "error")
+        return redirect(url_for("admin.assignments_index"))
+    title = request.form.get("title", "").strip()
+    lecture_date = _form_date(request.form.get("date"))
+    if not title or lecture_date is None:
+        flash("A valid date and lecture title are required.", "error")
+        return redirect(url_for("admin.assignments_index"))
+    item.date = lecture_date
+    item.title = title[:200]
+    item.position = _int_or_default(request.form.get("position"), item.position)
+    db.session.commit()
+    flash("Lecture updated.", "success")
+    return redirect(url_for("admin.assignments_index"))
+
+
+@bp.route("/admin/assignments/lecture/<int:item_id>/delete", methods=["POST"])
+@login_required
+def delete_lecture(item_id):
+    item = db.session.get(Lecture, item_id)
+    if item:
+        db.session.delete(item)
+        db.session.commit()
+        flash("Lecture deleted.", "success")
+    else:
+        flash("Lecture not found.", "error")
+    return redirect(url_for("admin.assignments_index"))
+
+
+@bp.route("/admin/assignments/item", methods=["POST"])
+@login_required
+def add_lecture_item():
+    lecture_id = _int_or_default(request.form.get("lecture_id"), None)
+    lecture = None
+    if lecture_id is not None:
+        lecture = db.session.get(Lecture, lecture_id)
+    text = request.form.get("text", "").strip()
+    link = request.form.get("url", "").strip()
+    safe_link = _safe_link(link)
+    if lecture is None or not text:
+        flash("Lecture and checklist text are required.", "error")
+        return redirect(url_for("admin.assignments_index"))
+    if link and not safe_link:
+        flash("Link must be a full http:// or https:// URL.", "error")
+        return redirect(url_for("admin.assignments_index"))
+    db.session.add(
+        LectureItem(
+            lecture_id=lecture.id,
+            text=text[:300],
+            url=safe_link[:500],
+            position=_int_or_default(request.form.get("position")),
+        )
+    )
+    db.session.commit()
+    flash("Checklist item added.", "success")
+    return redirect(url_for("admin.assignments_index"))
+
+
+@bp.route("/admin/assignments/item/<int:item_id>/edit", methods=["POST"])
+@login_required
+def edit_lecture_item(item_id):
+    item = db.session.get(LectureItem, item_id)
+    if not item:
+        flash("Checklist item not found.", "error")
+        return redirect(url_for("admin.assignments_index"))
+    text = request.form.get("text", "").strip()
+    link = request.form.get("url", "").strip()
+    safe_link = _safe_link(link)
+    if not text:
+        flash("Checklist text is required.", "error")
+        return redirect(url_for("admin.assignments_index"))
+    if link and not safe_link:
+        flash("Link must be a full http:// or https:// URL.", "error")
+        return redirect(url_for("admin.assignments_index"))
+    item.text = text[:300]
+    item.url = safe_link[:500]
+    item.position = _int_or_default(request.form.get("position"), item.position)
+    db.session.commit()
+    flash("Checklist item updated.", "success")
+    return redirect(url_for("admin.assignments_index"))
+
+
+@bp.route("/admin/assignments/item/<int:item_id>/delete", methods=["POST"])
+@login_required
+def delete_lecture_item(item_id):
+    item = db.session.get(LectureItem, item_id)
+    if item:
+        db.session.delete(item)
+        db.session.commit()
+        flash("Checklist item deleted.", "success")
+    else:
+        flash("Checklist item not found.", "error")
+    return redirect(url_for("admin.assignments_index"))
+
+
+@bp.route("/admin/projects")
+@login_required
+def projects_index():
+    projects = Project.query.order_by(Project.position.asc(), Project.id.asc()).all()
+    return render_template("admin/projects.html", projects=projects)
+
+
+@bp.route("/admin/project", methods=["POST"])
+@login_required
+def add_project():
+    title = request.form.get("title", "").strip()
+    link = request.form.get("url", "").strip()
+    safe_link = _safe_link(link)
+    if not title:
+        flash("Project title is required.", "error")
+        return redirect(url_for("admin.projects_index"))
+    if link and not safe_link:
+        flash("Link must be a full http:// or https:// URL.", "error")
+        return redirect(url_for("admin.projects_index"))
+    db.session.add(
+        Project(
+            title=title[:200],
+            description=request.form.get("description", "").strip(),
+            url=safe_link[:500],
+            position=_int_or_default(request.form.get("position")),
+        )
+    )
+    db.session.commit()
+    flash("Project added.", "success")
+    return redirect(url_for("admin.projects_index"))
+
+
+@bp.route("/admin/project/<int:item_id>/edit", methods=["POST"])
+@login_required
+def edit_project(item_id):
+    item = db.session.get(Project, item_id)
+    if not item:
+        flash("Project not found.", "error")
+        return redirect(url_for("admin.projects_index"))
+    title = request.form.get("title", "").strip()
+    link = request.form.get("url", "").strip()
+    safe_link = _safe_link(link)
+    if not title:
+        flash("Project title is required.", "error")
+        return redirect(url_for("admin.projects_index"))
+    if link and not safe_link:
+        flash("Link must be a full http:// or https:// URL.", "error")
+        return redirect(url_for("admin.projects_index"))
+    item.title = title[:200]
+    item.description = request.form.get("description", "").strip()
+    item.url = safe_link[:500]
+    item.position = _int_or_default(request.form.get("position"), item.position)
+    db.session.commit()
+    flash("Project updated.", "success")
+    return redirect(url_for("admin.projects_index"))
+
+
+@bp.route("/admin/project/<int:item_id>/delete", methods=["POST"])
+@login_required
+def delete_project(item_id):
+    item = db.session.get(Project, item_id)
+    if item:
+        db.session.delete(item)
+        db.session.commit()
+        flash("Project deleted.", "success")
+    else:
+        flash("Project not found.", "error")
+    return redirect(url_for("admin.projects_index"))
 
 
 @bp.route("/admin")
