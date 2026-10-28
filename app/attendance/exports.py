@@ -25,12 +25,14 @@ PALETTE = {
     "cream": "#F8EBAB",        # text
 }
 
-# Status order and human labels used in every export.
-SECTIONS = [
-    ("present", "ATTENDED"),
-    ("late", "LATE"),
-    ("absent", "ABSENT"),
-]
+REFERENCE = {
+    "green": "DCFCE7",
+    "amber": "FDE68A",
+    "yellow": "FFE600",
+    "yellow_soft": "FFF2B0",
+    "black": "000000",
+    "white": "FFFFFF",
+}
 
 
 def group_records(records):
@@ -49,63 +51,125 @@ def day_records(day):
     return group_records(session.records)
 
 
+def _safe_spreadsheet_value(value):
+    """Prevent spreadsheet formula injection in text cells."""
+    if isinstance(value, str) and value.startswith(("=", "+", "-", "@")):
+        return "'" + value
+    return value
+
+
+def _write_excel_section(
+    sheet,
+    row,
+    title,
+    records,
+    *,
+    header_fill,
+    row_fill,
+    row_font,
+    empty_message,
+):
+    sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+    heading = sheet.cell(row=row, column=1, value=title)
+    heading.font = Font(bold=True, size=14, color=REFERENCE["black"])
+    heading.fill = PatternFill("solid", fgColor=header_fill)
+    heading.alignment = Alignment(horizontal="left")
+    row += 1
+
+    for column, label in enumerate(("#", "Name (English)", "الاسم (عربي)"), start=1):
+        cell = sheet.cell(row=row, column=column, value=label)
+        cell.font = Font(bold=True, size=11)
+        cell.fill = PatternFill("solid", fgColor=header_fill)
+    sheet.cell(row=row, column=3).alignment = Alignment(
+        horizontal="right", readingOrder=2
+    )
+    row += 1
+
+    if records:
+        for record in records:
+            values = (
+                record.student_id,
+                _safe_spreadsheet_value(record.student.name_en),
+                _safe_spreadsheet_value(record.student.name_ar),
+            )
+            for column, value in enumerate(values, start=1):
+                cell = sheet.cell(row=row, column=column, value=value)
+                cell.font = row_font
+                cell.fill = PatternFill("solid", fgColor=row_fill)
+                if column == 3:
+                    cell.alignment = Alignment(horizontal="right", readingOrder=2)
+            row += 1
+    else:
+        sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+        cell = sheet.cell(row=row, column=1, value=empty_message)
+        cell.font = row_font
+        cell.fill = PatternFill("solid", fgColor=row_fill)
+        row += 1
+
+    return row + 1
+
+
 def build_excel(day):
-    """Return an .xlsx workbook as bytes with Attended/Late/Absent sections."""
+    """Return the reference-style bilingual .xlsx workbook as bytes."""
     records = day_records(day)
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "Attendance"
+    sheet.sheet_view.showGridLines = False
 
-    # Column widths (index, letter, width).
-    sheet.column_dimensions["A"].width = 6
-    sheet.column_dimensions["B"].width = 40
-    sheet.column_dimensions["C"].width = 40
+    sheet.column_dimensions["A"].width = 8
+    sheet.column_dimensions["B"].width = 42
+    sheet.column_dimensions["C"].width = 34
 
-    # ---- Title block ----
-    sheet["A1"] = f"C1 Attendance - {day.isoformat()}"
-    sheet["A1"].font = Font(bold=True, size=14, color=PALETTE["red"][1:])
     sheet.merge_cells("A1:C1")
-    sheet["A1"].alignment = Alignment(horizontal="center")
+    sheet["A1"] = (
+        "Egypt-Japan KOSEN Institute — Class C1 Attendance / "
+        "معهد مصر اليابان كوسن — حضور وغياب فصل C1"
+    )
+    sheet["A1"].font = Font(bold=True, size=16)
+    sheet["A1"].alignment = Alignment(horizontal="center", wrap_text=True)
+    sheet.row_dimensions[1].height = 34
 
-    row = 3
-    for status, label in SECTIONS:
-        # Section heading.
-        sheet.cell(row=row, column=1, value=label)
-        heading = sheet.cell(row=row, column=1)
-        heading.font = Font(bold=True, size=12, color="FFFFFF")
-        heading.fill = PatternFill("solid", fgColor=PALETTE["dark_red"][1:])
-        sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
-        row += 1
+    sheet["A2"] = f"Date / التاريخ: {day.isoformat()}"
+    sheet["B2"] = (
+        f"Present / حاضر: {len(records['present'])}   "
+        f"Late / متأخر: {len(records['late'])}"
+    )
+    sheet["C2"] = f"Absent / غائب: {len(records['absent'])}"
+    for coordinate in ("A2", "B2", "C2"):
+        sheet[coordinate].font = Font(bold=True, size=12)
 
-        items = records.get(status, [])
-
-        # Absent and late rows are highlighted so they stand out on paper.
-        if status == "absent":
-            fill = PatternFill("solid", fgColor=PALETTE["yellow"][1:])
-            font = Font(bold=True, size=12)
-        elif status == "late":
-            fill = PatternFill("solid", fgColor=PALETTE["red"][1:])
-            font = Font(bold=True, size=12, color="FFFFFF")
-        else:
-            fill = None
-            font = Font(size=11)
-
-        if not items:
-            sheet.cell(row=row, column=1, value="-")
-            row += 1
-        else:
-            for index, record in enumerate(items, start=1):
-                cells = [
-                    sheet.cell(row=row, column=1, value=index),
-                    sheet.cell(row=row, column=2, value=record.student.name_en),
-                    sheet.cell(row=row, column=3, value=record.student.name_ar),
-                ]
-                for cell in cells:
-                    cell.font = font
-                    if fill is not None:
-                        cell.fill = fill
-                row += 1
-        row += 1  # blank line between sections
+    row = 4
+    row = _write_excel_section(
+        sheet,
+        row,
+        "Attended / الحاضرون",
+        records["present"],
+        header_fill=REFERENCE["green"],
+        row_fill=REFERENCE["white"],
+        row_font=Font(size=11),
+        empty_message="No present students / لا يوجد حاضرون",
+    )
+    row = _write_excel_section(
+        sheet,
+        row,
+        "Late / المتأخرون",
+        records["late"],
+        header_fill=REFERENCE["amber"],
+        row_fill=REFERENCE["yellow_soft"],
+        row_font=Font(bold=True, size=12),
+        empty_message="Nobody late / لا يوجد متأخرون",
+    )
+    _write_excel_section(
+        sheet,
+        row,
+        "Absent / الغائبون",
+        records["absent"],
+        header_fill=REFERENCE["yellow"],
+        row_fill=REFERENCE["yellow"],
+        row_font=Font(bold=True, size=18),
+        empty_message="No absent students — everyone attended! / لا يوجد غياب — الجميع حاضر!",
+    )
 
     buffer = io.BytesIO()
     workbook.save(buffer)

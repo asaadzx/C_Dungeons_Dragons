@@ -40,7 +40,7 @@ def test_group_records_separates_statuses(app):
         assert [r.student.name_en for r in groups["absent"]] == ["Absent A"]
 
 
-def test_excel_has_sections(app):
+def test_excel_uses_reference_layout(app):
     user_id, s1, s2, s3 = _seed(app)
     with app.app_context():
         from app.attendance.exports import build_excel
@@ -52,7 +52,37 @@ def test_excel_has_sections(app):
             {},
             user_id,
         )
+        data = build_excel(date(2026, 10, 22))
+        workbook = load_workbook(io.BytesIO(data))
+        sheet = workbook.active
+        text = " ".join(
+            str(cell.value)
+            for row in sheet.iter_rows()
+            for cell in row
+            if cell.value
+        )
 
+        assert "Egypt-Japan KOSEN Institute" in text
+        assert "حضور وغياب فصل C1" in text
+        assert "2026-10-22" in text
+        assert "Attended / الحاضرون" in text
+        assert "Late / المتأخرون" in text
+        assert "Absent / الغائبون" in text
+        assert "Present P" in text
+        assert "Late L" in text
+        assert "Absent A" in text
+        assert "ط" in text
+        assert "ح" in text
+        assert "خ" in text
+
+
+def test_excel_shows_all_present_message(app):
+    user_id, s1, _s2, _s3 = _seed(app)
+    with app.app_context():
+        from app.attendance.exports import build_excel
+        from app.attendance.services import save_attendance
+
+        save_attendance(date(2026, 10, 22), {s1: "present"}, {}, user_id)
         data = build_excel(date(2026, 10, 22))
         workbook = load_workbook(io.BytesIO(data))
         text = " ".join(
@@ -61,12 +91,9 @@ def test_excel_has_sections(app):
             for cell in row
             if cell.value
         )
-        assert "ATTENDED" in text
-        assert "LATE" in text
-        assert "ABSENT" in text
-        assert "Present P" in text
-        assert "Late L" in text
-        assert "Absent A" in text
+
+        assert "No absent students" in text
+        assert "لا يوجد غياب" in text
 
 
 def test_png_returns_image(app):
