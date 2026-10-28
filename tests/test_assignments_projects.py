@@ -256,4 +256,3 @@ def test_admin_rejects_invalid_date_and_links(client, app):
     )
     with app.app_context():
         assert LectureItem.query.count() == 0
-   
