@@ -19,6 +19,7 @@ def test_assignments_show_newest_date_and_tabs(client, app):
     assert "Old lecture" not in page
     assert "01 Oct 2026" in page
     assert "29 Oct 2026" in page
+    assert page.index("29 Oct 2026") < page.index("01 Oct 2026")
     assert 'href="/assignments?date=2026-10-01"' in page
 
 
@@ -35,6 +36,21 @@ def test_assignments_date_query_selects_day(client, app):
     page = client.get("/assignments?date=2026-10-01").data.decode()
     assert "Old lecture" in page
     assert "New lecture" not in page
+
+
+def test_assignments_unknown_date_falls_back_to_newest(client, app):
+    with app.app_context():
+        db.session.add_all(
+            [
+                Lecture(date=date(2026, 10, 1), title="Old lecture"),
+                Lecture(date=date(2026, 10, 29), title="New lecture"),
+            ]
+        )
+        db.session.commit()
+
+    page = client.get("/assignments?date=1999-01-01").data.decode()
+    assert "New lecture" in page
+    assert "Old lecture" not in page
 
 
 def test_assignments_render_ordered_items_and_safe_links(client, app):
@@ -77,9 +93,9 @@ def test_projects_render_cards_and_safe_links(client, app):
                     title="Robot",
                     description="Build a robot",
                     url="https://example.com/robot",
-                    position=1,
+                    position=2,
                 ),
-                Project(title="Game", description="Make a game", position=2),
+                Project(title="Game", description="Make a game", position=1),
             ]
         )
         db.session.commit()
@@ -89,6 +105,7 @@ def test_projects_render_cards_and_safe_links(client, app):
     assert "Build a robot" in page
     assert 'href="https://example.com/robot"' in page
     assert "Make a game" in page
+    assert page.index("Game") < page.index("Robot")
 
 
 def test_projects_do_not_render_unsafe_links(client, app):
@@ -187,6 +204,44 @@ def test_assignment_admin_crud(client, app):
     )
     with app.app_context():
         assert Lecture.query.count() == 0
+        assert LectureItem.query.count() == 0
+
+
+def test_assignment_item_edit_keeps_url_when_link_is_unsafe(client, app):
+    token = _login(client, app)
+    with app.app_context():
+        lecture = Lecture(date=date(2026, 10, 29), title="Databases")
+        item = LectureItem(text="Reading", url="https://example.com/safe")
+        lecture.items = [item]
+        db.session.add(lecture)
+        db.session.commit()
+        item_id = item.id
+
+    client.post(
+        f"/admin/assignments/item/{item_id}/edit",
+        data={
+            "csrf_token": token,
+            "text": "Reading",
+            "url": "javascript:alert(1)",
+            "position": "0",
+        },
+    )
+    with app.app_context():
+        assert db.session.get(LectureItem, item_id).url == "https://example.com/safe"
+
+
+def test_assignment_item_rejects_huge_lecture_id(client, app):
+    token = _login(client, app)
+    response = client.post(
+        "/admin/assignments/item",
+        data={
+            "csrf_token": token,
+            "lecture_id": "9" * 5000,
+            "text": "Bad",
+        },
+    )
+    assert response.status_code == 302
+    with app.app_context():
         assert LectureItem.query.count() == 0
 
 

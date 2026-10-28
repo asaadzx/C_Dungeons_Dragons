@@ -98,7 +98,12 @@ class LectureItem(db.Model):
     __tablename__ = "lecture_items"
 
     id = db.Column(db.Integer, primary_key=True)
-    lecture_id = db.Column(db.Integer, db.ForeignKey("lectures.id"), nullable=False)
+    lecture_id = db.Column(
+        db.Integer,
+        db.ForeignKey("lectures.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     text = db.Column(db.String(300), nullable=False)
     url = db.Column(db.String(500), nullable=False, default="")
     position = db.Column(db.Integer, nullable=False, default=0)
@@ -127,7 +132,7 @@ Create `migrations/versions/1e043007060e_add_lectures_and_projects.py`:
 """add lectures and projects
 
 Revision ID: 1e043007060e
-Revises: 7c256e11f12e
+Revises: 8f55f46e6b40
 Create Date: 2026-10-29 00:00:00.000000
 
 """
@@ -136,7 +141,7 @@ import sqlalchemy as sa
 
 
 revision = "1e043007060e"
-down_revision = "7c256e11f12e"
+down_revision = "8f55f46e6b40"
 branch_labels = None
 depends_on = None
 
@@ -160,8 +165,11 @@ def upgrade():
         sa.Column("text", sa.String(length=300), nullable=False),
         sa.Column("url", sa.String(length=500), nullable=False),
         sa.Column("position", sa.Integer(), nullable=False),
-        sa.ForeignKeyConstraint(["lecture_id"], ["lectures.id"]),
+        sa.ForeignKeyConstraint(["lecture_id"], ["lectures.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(
+        "ix_lecture_items_lecture_id", "lecture_items", ["lecture_id"], unique=False
     )
 
     op.create_table(
@@ -178,6 +186,7 @@ def upgrade():
 
 def downgrade():
     op.drop_table("projects")
+    op.drop_index("ix_lecture_items_lecture_id", table_name="lecture_items")
     op.drop_table("lecture_items")
     op.drop_index(op.f("ix_lectures_date"), table_name="lectures")
     op.drop_table("lectures")

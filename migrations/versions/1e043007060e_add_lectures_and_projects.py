@@ -34,8 +34,11 @@ def upgrade():
         sa.Column("text", sa.String(length=300), nullable=False),
         sa.Column("url", sa.String(length=500), nullable=False),
         sa.Column("position", sa.Integer(), nullable=False),
-        sa.ForeignKeyConstraint(["lecture_id"], ["lectures.id"]),
+        sa.ForeignKeyConstraint(["lecture_id"], ["lectures.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(
+        "ix_lecture_items_lecture_id", "lecture_items", ["lecture_id"], unique=False
     )
 
     op.create_table(
@@ -52,6 +55,7 @@ def upgrade():
 
 def downgrade():
     op.drop_table("projects")
+    op.drop_index("ix_lecture_items_lecture_id", table_name="lecture_items")
     op.drop_table("lecture_items")
     op.drop_index(op.f("ix_lectures_date"), table_name="lectures")
     op.drop_table("lectures")

@@ -133,7 +133,12 @@ def delete_lecture(item_id):
 @login_required
 def add_lecture_item():
     lecture_id = request.form.get("lecture_id", "").strip()
-    lecture = db.session.get(Lecture, int(lecture_id)) if lecture_id.isdigit() else None
+    lecture = None
+    if lecture_id.isdigit():
+        try:
+            lecture = db.session.get(Lecture, int(lecture_id))
+        except (TypeError, ValueError):
+            lecture = None
     text = request.form.get("text", "").strip()
     link = request.form.get("url", "").strip()
     safe_link = _safe_link(link)

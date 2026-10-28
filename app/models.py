@@ -263,7 +263,12 @@ class LectureItem(db.Model):
     __tablename__ = "lecture_items"
 
     id = db.Column(db.Integer, primary_key=True)
-    lecture_id = db.Column(db.Integer, db.ForeignKey("lectures.id"), nullable=False)
+    lecture_id = db.Column(
+        db.Integer,
+        db.ForeignKey("lectures.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     text = db.Column(db.String(300), nullable=False)
     url = db.Column(db.String(500), nullable=False, default="")
     position = db.Column(db.Integer, nullable=False, default=0)
