@@ -99,6 +99,72 @@ document.getElementById('noneBtn')?.addEventListener('click', function () {
     sel.value = 'absent';
   });
 });
+
+// Browsers use document.title as the default PDF filename when printing.
+var printTitle = '{{ day.isoformat() }}-c1Class-attendance';
+var originalTitle = document.title;
+window.addEventListener('beforeprint', function () {
+  document.title = printTitle;
+});
+window.addEventListener('afterprint', function () {
+  document.title = originalTitle;
+});
 </script>
+
+<!-- Print-only poster: matches the reference class-c1-attendance design. -->
+<div id="attendance-print" class="attendance-print" aria-hidden="true">
+    <div class="attendance-poster">
+        <header class="ap-head">
+            <h2 class="ap-title-en">Late &amp; Absent Students</h2>
+            <p class="ap-title-ar" dir="rtl">المتأخرون والغائبون</p>
+            <p class="ap-sub-en">Class C1 — Egypt-Japan KOSEN Institute</p>
+            <p class="ap-sub-ar" dir="rtl">فصل C1 — معهد مصر اليابان كوسن</p>
+            <div class="ap-date">{{ day.isoformat() }}</div>
+            <div class="ap-counts">
+                <span>Late / متأخر: {{ export_groups.late|length }}</span>
+                <span>Absent / غائب: {{ export_groups.absent|length }}</span>
+            </div>
+        </header>
+
+        <section class="ap-section">
+            <h3 class="ap-section-title">
+                <span>Late</span>
+                <span dir="rtl">المتأخرون</span>
+            </h3>
+            {% for record in export_groups.late %}
+                <div class="ap-row ap-row-late">
+                    <span class="ap-num">#{{ record.student_id }}</span>
+                    <span class="ap-name-en" dir="ltr">{{ record.student.name_en }}</span>
+                    <span class="ap-name-ar" dir="rtl">{{ record.student.name_ar }}</span>
+                </div>
+            {% else %}
+                <div class="ap-empty ap-row-late">Nobody late / لا يوجد متأخرون</div>
+            {% endfor %}
+        </section>
+
+        <section class="ap-section">
+            <h3 class="ap-section-title">
+                <span>Absent</span>
+                <span dir="rtl">الغائبون</span>
+            </h3>
+            {% for record in export_groups.absent %}
+                <div class="ap-row ap-row-absent">
+                    <span class="ap-num">#{{ record.student_id }}</span>
+                    <span class="ap-name-en" dir="ltr">{{ record.student.name_en }}</span>
+                    <span class="ap-name-ar" dir="rtl">{{ record.student.name_ar }}</span>
+                </div>
+            {% else %}
+                <div class="ap-empty ap-row-absent">
+                    No absent students — everyone attended! / لا يوجد غياب — الجميع حاضر!
+                </div>
+            {% endfor %}
+        </section>
+
+        <footer class="ap-footer">
+            Egypt-Japan KOSEN Institute — Class C1 /
+            معهد مصر اليابان كوسن — فصل C1
+        </footer>
+    </div>
+</div>
 
 {% endblock %}

@@ -161,6 +161,28 @@ def test_exports_are_not_cached(client, app):
         assert "no-store" in cache_control, f"{path} is cacheable: {cache_control!r}"
 
 
+def test_daily_page_has_print_poster(client, app):
+    user_id, s1, s2, s3 = _seed(app)
+    with app.app_context():
+        from app.attendance.services import save_attendance
+
+        save_attendance(
+            date(2026, 10, 22),
+            {s1: "present", s2: "late", s3: "absent"},
+            {},
+            user_id,
+        )
+    _login(client)
+
+    page = client.get("/attendance?date=2026-10-22").data.decode()
+    assert 'id="attendance-print"' in page
+    assert "attendance-poster" in page
+    assert "Late L" in page
+    assert "Absent A" in page
+    assert "المتأخرون" in page
+    assert "الغائبون" in page
+
+
 def _login(client):
     import re
 

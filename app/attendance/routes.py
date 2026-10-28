@@ -15,7 +15,7 @@ from flask_login import current_user, login_required
 
 from . import bp
 from .dbweekly import aggregate_saved_week, most_recent_sunday
-from .exports import build_excel, build_png
+from .exports import build_excel, build_png, group_records
 from .services import active_students, daily_csv, get_session, save_attendance
 from .weekly import aggregate_weekly
 from ..models import AttendanceSession, Student
@@ -59,6 +59,11 @@ def daily():
         return redirect(url_for("attendance.daily", date=day.isoformat()))
 
     records = {r.student_id: r for r in attendance_session.records} if attendance_session else {}
+    export_groups = (
+        group_records(attendance_session.records)
+        if attendance_session
+        else {"present": [], "late": [], "absent": []}
+    )
     recent = (
         AttendanceSession.query.order_by(AttendanceSession.date.desc()).limit(10).all()
     )
@@ -67,6 +72,7 @@ def daily():
         day=day,
         students=active_students(),
         records=records,
+        export_groups=export_groups,
         recent=recent,
     )
 
