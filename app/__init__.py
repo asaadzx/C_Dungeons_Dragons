@@ -97,7 +97,11 @@ def create_app(config_object=Config):
         # Roll back any half-finished database work before showing the page.
         db.session.rollback()
         app.logger.exception("Database unavailable")
-        return render_template("errors/503.html"), 503
+        # Render directly instead of via render_template: Flask-Login's context
+        # processor eagerly loads current_user, which would hit the database
+        # again and raise while we are trying to report that it is down.
+        html = app.jinja_env.get_template("errors/503.html").render()
+        return html, 503
 
     return app
 

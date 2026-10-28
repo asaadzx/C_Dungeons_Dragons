@@ -1,6 +1,17 @@
-{% extends "base.html" %}
-{% block content %}
-<h2 class="page-title">Database unavailable</h2>
-<p>The database is temporarily unavailable. Please try again in a moment.</p>
-<a class="nes-btn is-primary" href="{{ url_for('hub.index') }}">Back home</a>
-{% endblock %}
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database unavailable - C! Dungeons &amp; Dragons</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='nes/nes.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <main class="container">
+        <h2 class="page-title">Database unavailable</h2>
+        <p>The database is temporarily unavailable. Please try again in a moment.</p>
+        <a class="nes-btn is-primary" href="{{ url_for('hub.index') }}">Back home</a>
+    </main>
+</body>
+</html>
