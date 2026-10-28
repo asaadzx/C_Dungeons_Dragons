@@ -2,6 +2,7 @@ import io
 from datetime import date
 
 from openpyxl import load_workbook
+from PIL import Image
 
 from app.extensions import db
 from app.models import Student, User
@@ -96,14 +97,44 @@ def test_excel_shows_all_present_message(app):
         assert "لا يوجد غياب" in text
 
 
-def test_png_returns_image(app):
-    _seed(app)
+def test_png_uses_reference_white_palette(app):
+    user_id, s1, s2, s3 = _seed(app)
     with app.app_context():
         from app.attendance.exports import build_png
+        from app.attendance.services import save_attendance
 
+        save_attendance(
+            date(2026, 10, 22),
+            {s1: "present", s2: "late", s3: "absent"},
+            {},
+            user_id,
+        )
         data = build_png(date(2026, 10, 22))
-        assert data[:8] == b"\x89PNG\r\n\x1a\n"
-        assert len(data) > 100
+
+    assert data[:8] == b"\x89PNG\r\n\x1a\n"
+    image = Image.open(io.BytesIO(data)).convert("RGB")
+    assert image.getpixel((0, 0)) == (255, 255, 255)
+    assert image.getpixel((0, 0)) != (190, 26, 26)
+
+
+def test_poster_model_has_late_and_absent(app):
+    user_id, s1, s2, s3 = _seed(app)
+    with app.app_context():
+        from app.attendance.exports import poster_model
+        from app.attendance.services import save_attendance
+
+        save_attendance(
+            date(2026, 10, 22),
+            {s1: "present", s2: "late", s3: "absent"},
+            {},
+            user_id,
+        )
+        model = poster_model(date(2026, 10, 22))
+
+        assert [r.student.name_en for r in model["late"]] == ["Late L"]
+        assert [r.student.name_en for r in model["absent"]] == ["Absent A"]
+        assert model["late_count"] == 1
+        assert model["absent_count"] == 1
 
 
 def test_export_routes_require_login(client):
