@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h2 class="page-title">&#128640; Projects</h2>
+<p class="page-subtitle">Class projects and useful links.</p>
+
+<div class="cards-grid">
+    {% for project in projects %}
+        <section class="nes-container is-rounded">
+            <h3>{{ project.title }}</h3>
+            {% if project.description %}
+                <p>{{ project.description }}</p>
+            {% endif %}
+            {% set link = project.url|safe_url %}
+            {% if link %}
+                <a class="nes-btn is-primary" href="{{ link }}"
+                   target="_blank" rel="noopener">Open project</a>
+            {% endif %}
+        </section>
+    {% else %}
+        <section class="nes-container is-rounded">
+            <p>No projects have been added yet.</p>
+        </section>
+    {% endfor %}
+</div>
+
+{% endblock %}

@@ -803,6 +803,7 @@ table {
 }
 
 /* Utility */
+.tab-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .center { text-align: center; }
 .mt-1 { margin-top: 0.75rem; }
 .mt-2 { margin-top: 1.5rem; }

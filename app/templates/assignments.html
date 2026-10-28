@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h2 class="page-title">&#128218; Assignments</h2>
+<p class="page-subtitle">Lecture notes and checklists by day.</p>
+
+{% if dates %}
+    <div class="tab-row">
+        {% for day in dates %}
+            <a class="nes-btn {% if day == selected %}is-primary{% else %}is-warning{% endif %}"
+               href="{{ url_for('hub.assignments', date=day.isoformat()) }}">
+                {{ day.strftime('%d %b %Y') }}
+            </a>
+        {% endfor %}
+    </div>
+
+    <div class="cards-grid mt-2">
+        {% for lecture in lectures %}
+            <section class="nes-container with-title is-rounded">
+                <p class="title">{{ lecture.title }}</p>
+                {% if lecture.items %}
+                    <ul class="nes-list is-circle">
+                        {% for item in lecture.items %}
+                            {% set link = item.url|safe_url %}
+                            <li>
+                                {% if link %}
+                                    <a href="{{ link }}" target="_blank" rel="noopener">{{ item.text }}</a>
+                                {% else %}
+                                    {{ item.text }}
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No checklist items yet.</p>
+                {% endif %}
+            </section>
+        {% else %}
+            <section class="nes-container is-rounded">
+                <p>No lectures for this day.</p>
+            </section>
+        {% endfor %}
+    </div>
+{% else %}
+    <section class="nes-container is-rounded">
+        <p>No lectures have been added yet.</p>
+    </section>
+{% endif %}
+
+{% endblock %}
