@@ -117,6 +117,99 @@ def test_anonymous_profile_with_only_phone_shows_empty_contact_state(client, app
     assert "No contact details added yet." in profile
 
 
+def test_anonymous_schedule_hides_event_form(client):
+    page = client.get("/schedule").data.decode()
+    assert "Post an event" not in page
+    assert "Staff login is required to post an event." in page
+
+
+def test_staff_schedule_shows_event_form(client, app):
+    _login_as_staff(client, app)
+    page = client.get("/schedule").data.decode()
+    assert "Post an event" in page
+
+
+def test_create_event_rejects_unsafe_link(client, app):
+    _login_as_staff(client, app)
+    with app.app_context():
+        from app.extensions import db
+        from app.models import Event, Student
+
+        student = Student(name_en="Organizer", name_ar="منظم")
+        db.session.add(student)
+        db.session.commit()
+        student_id = student.id
+
+    response = client.post(
+        "/schedule/add",
+        data={
+            "organizer_id": str(student_id),
+            "title": "Unsafe Event",
+            "link": "javascript:alert(1)",
+        },
+        follow_redirects=True,
+    )
+
+    assert "Event link must be a full http:// or https:// URL." in response.data.decode()
+    with app.app_context():
+        assert Event.query.count() == 0
+
+
+def test_edit_event_rejects_unsafe_link(client, app):
+    _login_as_staff(client, app)
+    with app.app_context():
+        from app.extensions import db
+        from app.models import Event, Student
+
+        student = Student(name_en="Organizer", name_ar="منظم")
+        db.session.add(student)
+        db.session.commit()
+        event = Event(
+            organizer_id=student.id,
+            title="Safe Event",
+            link="https://example.com/event",
+        )
+        db.session.add(event)
+        db.session.commit()
+        event_id = event.id
+
+    response = client.post(
+        f"/admin/event/{event_id}/edit",
+        data={"title": "Changed", "link": "javascript:alert(1)"},
+        follow_redirects=True,
+    )
+
+    assert "Event link must be a full http:// or https:// URL." in response.data.decode()
+    with app.app_context():
+        from app.extensions import db
+        from app.models import Event
+
+        event = db.session.get(Event, event_id)
+        assert event.link == "https://example.com/event"
+        assert event.title == "Safe Event"
+
+
+def test_existing_unsafe_event_link_is_not_rendered(client, app):
+    with app.app_context():
+        from app.extensions import db
+        from app.models import Event, Student
+
+        student = Student(name_en="Organizer", name_ar="منظم")
+        db.session.add(student)
+        db.session.commit()
+        db.session.add(
+            Event(
+                organizer_id=student.id,
+                title="Legacy Unsafe",
+                link="javascript:alert(1)",
+            )
+        )
+        db.session.commit()
+
+    page = client.get("/schedule").data.decode()
+    assert "javascript:alert(1)" not in page
+
+
 def _login_as_staff(client, app):
     import re
 

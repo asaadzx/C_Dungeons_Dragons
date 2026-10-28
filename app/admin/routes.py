@@ -10,6 +10,7 @@ from flask_login import current_user, login_required
 
 from . import bp
 from ..extensions import db
+from ..security import safe_url
 from ..models import (
     Announcement,
     AttendanceAudit,
@@ -348,8 +349,13 @@ def edit_event(item_id):
     if organizer_id.isdigit() and db.session.get(Student, int(organizer_id)):
         item.organizer_id = int(organizer_id)
 
+    link = request.form.get("link", "").strip()
+    if link and not safe_url(link):
+        flash("Event link must be a full http:// or https:// URL.", "error")
+        return redirect(url_for("admin.index"))
+
     item.title = title[:200]
-    item.link = request.form.get("link", "").strip()[:500]
+    item.link = link[:500]
     item.description = request.form.get("description", "").strip()
     item.location = request.form.get("location", "").strip()[:200]
     item.event_date_actual = _parse_date(request.form.get("event_date_actual"))
