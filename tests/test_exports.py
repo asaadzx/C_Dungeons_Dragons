@@ -2,6 +2,7 @@
 
 import io
 from datetime import date
+from unittest.mock import Mock
 
 from openpyxl import load_workbook
 from PIL import Image
@@ -120,6 +121,22 @@ def test_png_uses_reference_white_palette(app):
     image = Image.open(io.BytesIO(data)).convert("RGB")
     assert image.getpixel((0, 0)) == (255, 255, 255)
     assert image.getpixel((0, 0)) != (190, 26, 26)
+
+
+def test_draw_text_falls_back_when_raqm_is_missing():
+    """Pillow raises KeyError, not ValueError, when libraqm is unavailable."""
+    from app.attendance.exports import _draw_text
+
+    draw = Mock()
+    draw.text.side_effect = [
+        KeyError("setting text direction is not supported without libraqm"),
+        None,
+    ]
+
+    _draw_text(draw, (0, 0), "المتأخرون", object(), (0, 0, 0), rtl=True)
+
+    assert draw.text.call_count == 2
+    assert "direction" not in draw.text.call_args.kwargs
 
 
 def test_poster_model_has_late_and_absent(app):

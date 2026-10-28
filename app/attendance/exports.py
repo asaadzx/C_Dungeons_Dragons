@@ -261,16 +261,16 @@ def _load_font(path_text, size):
 def _draw_text(draw, xy, text, font, fill, *, anchor="la", rtl=False):
     """Draw text with optional RTL shaping, falling back safely.
 
-    Pillow only joins/shapes Arabic glyphs when built with Raqm. Older builds
-    raise on the ``direction`` argument, so fall back to ordinary drawing
-    instead of failing the whole export.
+    Pillow only joins/shapes Arabic glyphs when Raqm is available. Builds
+    without it raise on the ``direction`` argument, so fall back to ordinary
+    drawing instead of failing the whole export.
     """
     kwargs = {"font": font, "fill": fill, "anchor": anchor}
     if rtl:
         try:
             draw.text(xy, text, direction="rtl", **kwargs)
             return
-        except (TypeError, ValueError):
+        except (KeyError, TypeError, ValueError):
             pass
     draw.text(xy, text, **kwargs)
 
