@@ -72,3 +72,66 @@ def test_add_event_form_has_csrf_token(client, app):
         from app.models import Event
 
         assert Event.query.filter_by(title="Study Night").one_or_none() is not None
+
+
+def test_contact_phone_is_staff_only_and_email_is_public(client, app):
+    with app.app_context():
+        from app.extensions import db
+        from app.models import Student
+
+        db.session.add(
+            Student(
+                name_en="Contact Student",
+                name_ar="طالب",
+                phone="01001234567",
+                email="student@example.com",
+            )
+        )
+        db.session.commit()
+
+    directory = client.get("/directory").data.decode()
+    profile = client.get("/student/1").data.decode()
+
+    assert "student@example.com" in directory
+    assert "student@example.com" in profile
+    assert "01001234567" not in directory
+    assert "01001234567" not in profile
+
+    _login_as_staff(client, app)
+
+    staff_profile = client.get("/student/1").data.decode()
+    assert "student@example.com" in staff_profile
+    assert "01001234567" in staff_profile
+
+
+def test_anonymous_profile_with_only_phone_shows_empty_contact_state(client, app):
+    with app.app_context():
+        from app.extensions import db
+        from app.models import Student
+
+        db.session.add(Student(name_en="Phone Only", name_ar="", phone="0100"))
+        db.session.commit()
+
+    profile = client.get("/student/1").data.decode()
+    assert "0100" not in profile
+    assert "No contact details added yet." in profile
+
+
+def _login_as_staff(client, app):
+    import re
+
+    from app.extensions import db
+    from app.models import User
+
+    with app.app_context():
+        user = User(username="staff", role="admin")
+        user.set_password("pw")
+        db.session.add(user)
+        db.session.commit()
+
+    page = client.get("/auth/login").data.decode()
+    token = re.search(r'name="csrf_token" value="([^"]+)"', page).group(1)
+    client.post(
+        "/auth/login",
+        data={"username": "staff", "password": "pw", "csrf_token": token},
+    )
