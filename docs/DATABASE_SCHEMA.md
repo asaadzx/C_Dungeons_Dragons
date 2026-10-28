@@ -78,7 +78,7 @@
 | Column | Type | Constraints |
 | --- | --- | --- |
 | id | INTEGER | PK, NOT NULL |
-| date | DATE | NOT NULL |
+| date | DATE | NOT NULL, UNIQUE (uq_attendance_session_date) |
 | created_by | INTEGER | FK → users.id, NOT NULL |
 | created_at | DATETIME | NOT NULL |
 | updated_at | DATETIME | NOT NULL |
@@ -103,7 +103,7 @@
 | --- | --- | --- |
 | id | INTEGER | PK, NOT NULL |
 | session_id | INTEGER | FK → attendance_sessions.id, NOT NULL |
-| changed_by | INTEGER | FK → users.id |
+| changed_by | INTEGER | FK → users.id, NULLABLE |
 | action | VARCHAR(50) | NOT NULL |
 | day | DATE | NOT NULL |
 | created_at | DATETIME | NOT NULL |
@@ -118,6 +118,8 @@
 | status | VARCHAR(20) | NOT NULL |
 | note | TEXT | NOT NULL |
 
+**Table constraint:** `UNIQUE (session_id, student_id)` (`uq_attendance_record`) — a student can appear only once per session.
+
 ## event_requests
 
 | Column | Type | Constraints |
@@ -127,7 +129,7 @@
 | requester_name | VARCHAR(200) | NOT NULL |
 | message | TEXT | NOT NULL |
 | status | VARCHAR(20) | NOT NULL |
-| user_id | INTEGER | FK → users.id |
+| user_id | INTEGER | FK → users.id, NULLABLE |
 | created_at | DATETIME | NOT NULL |
 
 ## Relationships

@@ -48,6 +48,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
+# Edit .env and leave DATABASE_URL empty for local SQLite before the next command.
 flask --app wsgi db upgrade
 flask --app wsgi seed-roster
 flask --app wsgi create-admin --username teacher
@@ -64,6 +65,7 @@ Open <http://127.0.0.1:5000>.
 | `DATABASE_URL` | PostgreSQL URL, or empty for local SQLite. |
 | `FLASK_ENV` | `development` locally, `production` on Railway. |
 | `FLASK_APP` | `wsgi.py`. |
+| `TZ` | `Africa/Cairo` (or your local timezone). |
 
 Never commit `.env`, passwords, or database dumps.
 
@@ -159,8 +161,9 @@ Expected: `{"status":"ok","database":"ok"}`
 ## Backups
 
 ```bash
-pg_dump "$DATABASE_URL" > backup-$(date +%F).sql
-psql "$DATABASE_URL" < backup-2026-10-22.sql
+BACKUP=backup-$(date +%F).sql
+pg_dump "$DATABASE_URL" > "$BACKUP"
+psql "$DATABASE_URL" < "$BACKUP"
 ```
 
 Back up regularly. A free database is not a backup.
