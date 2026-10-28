@@ -21,7 +21,7 @@ small enough to implement and verify in one cycle.
 | Event links | Render only `http`/`https`; reject unsafe links on create/edit |
 | Saved-week CSV | Reuse `/attendance/week/export.csv?start=YYYY-MM-DD` |
 | Database failures | Friendly 503 page for HTML routes; JSON 503 from `/health` |
-| README | Track in git and update Render references to Railway |
+| README | Track and rewrite as a student contributor guide with the project logo and Railway notes |
 | Schema docs | Commit the existing schema Markdown and diagram assets |
 | Stale deployment config | Remove `render.yaml` |
 | Database migration | None |
@@ -70,6 +70,14 @@ small enough to implement and verify in one cycle.
 ### Documentation and deployment
 
 - `README.md` is removed from `.gitignore` and committed.
+- README is written for students who will help develop the project, not only for
+  deployment operators. It includes the project logo and explains:
+  - what the app does and how it is organized,
+  - local setup and required commands,
+  - development rules: tests, lint, migrations, secrets, comments, and commits,
+  - how to make a safe change and verify it,
+  - the privacy/security rules contributors must preserve,
+  - deployment basics for Railway.
 - README deployment instructions describe Railway, not Render, and match the
   actual start command, health check, and URL.
 - The existing database schema documentation and diagram assets are committed.
@@ -88,7 +96,7 @@ small enough to implement and verify in one cycle.
 | `app/templates/errors/503.html` | Friendly database-unavailable page |
 | `app/attendance/routes.py` | Saved-week branch in `weekly_export`; `no-store` |
 | `app/templates/attendance/week_saved.html` | Export link includes `start` |
-| `README.md` | Tracked and updated for Railway |
+| `README.md` | Tracked, student-facing, logo included, Railway updated |
 | `.gitignore` | Stop ignoring README |
 | `render.yaml` | Delete |
 | `docs/` | Commit existing schema documentation and diagram assets |
@@ -145,6 +153,6 @@ Add or update tests for:
 4. Unsafe event links cannot be created or edited, and are never rendered.
 5. Saved-week export downloads the selected saved week.
 6. Database outages produce 503 responses without an unhandled traceback.
-7. README, schema docs, and Railway deployment documentation are tracked and
-   accurate.
+7. README is a tracked student contributor guide with the logo, development
+   rules, and Railway instructions; schema docs are tracked and accurate.
 8. Full test suite and JavaScript lint pass.
