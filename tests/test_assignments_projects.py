@@ -207,11 +207,11 @@ def test_assignment_admin_crud(client, app):
         assert LectureItem.query.count() == 0
 
 
-def test_assignment_item_edit_keeps_url_when_link_is_unsafe(client, app):
+def test_assignment_item_edit_keeps_item_when_link_is_unsafe(client, app):
     token = _login(client, app)
     with app.app_context():
         lecture = Lecture(date=date(2026, 10, 29), title="Databases")
-        item = LectureItem(text="Reading", url="https://example.com/safe")
+        item = LectureItem(text="Original", url="https://example.com/safe", position=3)
         lecture.items = [item]
         db.session.add(lecture)
         db.session.commit()
@@ -221,28 +221,71 @@ def test_assignment_item_edit_keeps_url_when_link_is_unsafe(client, app):
         f"/admin/assignments/item/{item_id}/edit",
         data={
             "csrf_token": token,
-            "text": "Reading",
+            "text": "Changed",
             "url": "javascript:alert(1)",
-            "position": "0",
+            "position": "5",
         },
     )
     with app.app_context():
-        assert db.session.get(LectureItem, item_id).url == "https://example.com/safe"
+        item = db.session.get(LectureItem, item_id)
+        assert item.url == "https://example.com/safe"
+        assert item.text == "Original"
+        assert item.position == 3
 
 
 def test_assignment_item_rejects_huge_lecture_id(client, app):
     token = _login(client, app)
-    response = client.post(
+    for lecture_id in ("9" * 5000, "9" * 30):
+        response = client.post(
+            "/admin/assignments/item",
+            data={
+                "csrf_token": token,
+                "lecture_id": lecture_id,
+                "text": "Bad",
+            },
+        )
+        assert response.status_code == 302
+    with app.app_context():
+        assert LectureItem.query.count() == 0
+
+
+def test_assignment_admin_clamps_oversized_positions(client, app):
+    token = _login(client, app)
+    oversized = "9" * 30
+    client.post(
+        "/admin/assignments/lecture",
+        data={
+            "csrf_token": token,
+            "date": "2026-10-29",
+            "title": "Databases",
+            "position": oversized,
+        },
+    )
+    with app.app_context():
+        lecture = Lecture.query.one()
+        lecture_id = lecture.id
+        assert lecture.position == 0
+
+    client.post(
         "/admin/assignments/item",
         data={
             "csrf_token": token,
-            "lecture_id": "9" * 5000,
-            "text": "Bad",
+            "lecture_id": str(lecture_id),
+            "text": "Read chapter 1",
+            "position": oversized,
         },
     )
-    assert response.status_code == 302
+    client.post(
+        "/admin/project",
+        data={
+            "csrf_token": token,
+            "title": "Robot",
+            "position": oversized,
+        },
+    )
     with app.app_context():
-        assert LectureItem.query.count() == 0
+        assert LectureItem.query.one().position == 0
+        assert Project.query.one().position == 0
 
 
 def test_project_admin_crud(client, app):

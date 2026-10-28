@@ -30,13 +30,20 @@ from ..news.feeds import clear_cache as clear_news_cache
 from ..news.feeds import ensure_news_sources
 
 CLASS_NEWS_CATEGORY = "Class News"
+SQLITE_INT_MIN = -(2**63)
+SQLITE_INT_MAX = 2**63 - 1
 
 
 def _int_or_default(value, default=0):
     try:
-        return int(value)
-    except (TypeError, ValueError):
+        if isinstance(value, str):
+            value = value.strip()
+        number = int(value)
+    except (TypeError, ValueError, OverflowError):
         return default
+    if number < SQLITE_INT_MIN or number > SQLITE_INT_MAX:
+        return default
+    return number
 
 
 def _form_date(value):
@@ -132,13 +139,10 @@ def delete_lecture(item_id):
 @bp.route("/admin/assignments/item", methods=["POST"])
 @login_required
 def add_lecture_item():
-    lecture_id = request.form.get("lecture_id", "").strip()
+    lecture_id = _int_or_default(request.form.get("lecture_id"), None)
     lecture = None
-    if lecture_id.isdigit():
-        try:
-            lecture = db.session.get(Lecture, int(lecture_id))
-        except (TypeError, ValueError):
-            lecture = None
+    if lecture_id is not None:
+        lecture = db.session.get(Lecture, lecture_id)
     text = request.form.get("text", "").strip()
     link = request.form.get("url", "").strip()
     safe_link = _safe_link(link)
