@@ -19,6 +19,27 @@ def _seed(app):
         return user.id, s1.id, s2.id, s3.id
 
 
+def test_group_records_separates_statuses(app):
+    user_id, s1, s2, s3 = _seed(app)
+    with app.app_context():
+        from app.attendance.exports import group_records
+        from app.attendance.services import save_attendance
+        from app.models import AttendanceSession
+
+        save_attendance(
+            date(2026, 10, 22),
+            {s1: "present", s2: "late", s3: "absent"},
+            {},
+            user_id,
+        )
+        session = AttendanceSession.query.one()
+        groups = group_records(session.records)
+
+        assert [r.student.name_en for r in groups["present"]] == ["Present P"]
+        assert [r.student.name_en for r in groups["late"]] == ["Late L"]
+        assert [r.student.name_en for r in groups["absent"]] == ["Absent A"]
+
+
 def test_excel_has_sections(app):
     user_id, s1, s2, s3 = _seed(app)
     with app.app_context():

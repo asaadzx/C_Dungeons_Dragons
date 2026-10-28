@@ -33,19 +33,20 @@ SECTIONS = [
 ]
 
 
-def day_records(day):
-    """Group a day's records by status: {status: [records sorted by name]}.
-
-    Returns empty lists when the day has not been saved yet.
-    """
-    session = get_session(day)
+def group_records(records):
+    """Group attendance records by status, sorted by English name."""
     grouped = {"present": [], "late": [], "absent": []}
-    if session is None:
-        return grouped
-
-    for record in sorted(session.records, key=lambda r: r.student.name_en):
+    for record in sorted(records, key=lambda r: r.student.name_en.lower()):
         grouped.setdefault(record.status, []).append(record)
     return grouped
+
+
+def day_records(day):
+    """Return a day's records grouped by status."""
+    session = get_session(day)
+    if session is None:
+        return {"present": [], "late": [], "absent": []}
+    return group_records(session.records)
 
 
 def build_excel(day):
