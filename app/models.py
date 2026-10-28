@@ -235,3 +235,50 @@ class AttendanceAudit(db.Model):
     action = db.Column(db.String(50), nullable=False, default="save")
     day = db.Column(db.Date, nullable=False, index=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+
+class Lecture(db.Model):
+    """A lecture note group shown under one day on the Assignments page."""
+
+    __tablename__ = "lectures"
+
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date, nullable=False, index=True)
+    title = db.Column(db.String(200), nullable=False)
+    position = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    items = db.relationship(
+        "LectureItem",
+        back_populates="lecture",
+        cascade="all, delete-orphan",
+        order_by="LectureItem.position, LectureItem.id",
+        lazy="selectin",
+    )
+
+
+class LectureItem(db.Model):
+    """One read-only checklist item inside a lecture card."""
+
+    __tablename__ = "lecture_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    lecture_id = db.Column(db.Integer, db.ForeignKey("lectures.id"), nullable=False)
+    text = db.Column(db.String(300), nullable=False)
+    url = db.Column(db.String(500), nullable=False, default="")
+    position = db.Column(db.Integer, nullable=False, default=0)
+
+    lecture = db.relationship("Lecture", back_populates="items")
+
+
+class Project(db.Model):
+    """A simple project card shown on the Projects page."""
+
+    __tablename__ = "projects"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False, default="")
+    url = db.Column(db.String(500), nullable=False, default="")
+    position = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
