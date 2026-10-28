@@ -141,10 +141,19 @@ def week_saved():
 @bp.get("/attendance/week/export.csv")
 @login_required
 def weekly_export():
-    summary = session.get("weekly_summary")
-    if not summary:
-        flash("Upload five daily files first.", "error")
-        return redirect(url_for("attendance.weekly"))
+    start_raw = request.args.get("start")
+    if start_raw is not None:
+        try:
+            start = date.fromisoformat(start_raw)
+        except (TypeError, ValueError):
+            flash("Invalid week start date.", "error")
+            return redirect(url_for("attendance.week_saved"))
+        summary = aggregate_saved_week(start)
+    else:
+        summary = session.get("weekly_summary")
+        if not summary:
+            flash("Upload five daily files first.", "error")
+            return redirect(url_for("attendance.weekly"))
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -164,8 +173,8 @@ def weekly_export():
                 " ".join(item["absent_dates"]),
             ]
         )
-    return Response(
+    return _download(
         output.getvalue(),
-        mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=c1-weekly-attendance.csv"},
+        "text/csv",
+        "c1-weekly-attendance.csv",
     )
